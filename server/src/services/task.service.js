@@ -1,0 +1,293 @@
+const taskModel = require('../models/task.model');
+const pointsLogModel = require('../models/points-log.model');
+const systemConfigModel = require('../models/system-config.model');
+const userModel = require('../models/user.model');
+const logger = require('../utils/logger');
+
+const TASK_POINTS_COST = {
+  subtitle: 10,
+  watermark: 15,
+  logo: 15,
+};
+
+const taskService = {
+  async createTask(userId, taskType, videoFile, region = null) {
+    // 检查用户
+    const user = await userModel.findById(userId);
+    if (!user) {
+      const error = new Error('用户不存在');
+      error.code = 1002;
+      throw error;
+    }
+
+    // 获取处理配置中的积分消耗
+    const pointsCost = TASK_POINTS_COST[taskType] || 10;
+
+    // VIP 用户不需要扣积分
+    const isVip = user.vip_type && user.vip_type !== 'none'
+      && user.vip_expire_at && new Date(user.vip_expire_at) > new Date();
+
+    if (!isVip) {
+      // 扣减积分（原子操作）
+      try {
+        await pointsLogModel.deductPoints(
+          userId,
+          pointsCost,
+          `处理视频任务（${taskType}）`,
+          null // task id assigned after creation
+        );
+      } catch (err) {
+        if (err.code === 1003) {
+          throw err; // 积分不足
+        }
+        throw err;
+      }
+    }
+
+    // 构建视频URL (本地存储路径)
+    const videoUrl = `/uploads/${videoFile.filename}`;
+
+    // 创建任务
+    const params = region ? { region } : null;
+    const task = await taskModel.create({
+      user_id: userId,
+      video_url: videoUrl,
+      task_type: taskType,
+      params,
+      points_cost: isVip ? 0 : pointsCost,
+    });
+
+    // 更新用户统计
+    await userModel.update(userId, { total_tasks: (user.total_tasks || 0) + 1 });
+
+    // 异步触发任务处理
+    this._processTaskAsync(task.id).catch((err) => {
+      logger.error(`任务处理失败: ${task.id}`, err);
+    });
+
+    return {
+      id: task.id,
+      user_id: task.user_id,
+      video_url: task.video_url,
+      task_type: task.task_type,
+      status: task.status,
+      progress: task.progress,
+      points_cost: isVip ? 0 : pointsCost,
+      created_at: task.created_at,
+    };
+  },
+
+  async _processTaskAsync(taskId) {
+    // 在实际生产环境中，这里会调用 Bull 队列或直接调用处理服务
+    // 这里模拟任务处理流程
+    try {
+      await taskModel.update(taskId, { status: 'processing', progress: 5 });
+      // 模拟处理时间
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await taskModel.update(taskId, { status: 'processing', progress: 30 });
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await taskModel.update(taskId, { status: 'processing', progress: 60 });
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await taskModel.update(taskId, { status: 'processing', progress: 90 });
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // 模拟处理完成
+      const resultUrl = `/uploads/processed/${taskId}_result.mp4`;
+      await taskModel.update(taskId, {
+        status: 'completed',
+        progress: 100,
+        result_url: resultUrl,
+        completed_at: new Date(),
+      });
+
+      logger.info(`任务处理完成: ${taskId}`);
+    } catch (err) {
+      logger.error(`任务处理异常: ${taskId}`, err);
+      await taskModel.update(taskId, {
+        status: 'failed',
+        error_message: err.message || '处理异常',
+      });
+    }
+  },
+
+  async getTaskList(userId, options = {}) {
+    const result = await taskModel.findByUser(userId, options);
+    return {
+      list: result.list,
+      pagination: {
+        page: options.page || 1,
+        page_size: options.pageSize || 20,
+        total: result.total,
+        total_pages: Math.ceil(result.total / (options.pageSize || 20)),
+      },
+    };
+  },
+
+  async getTaskDetail(taskId, userId) {
+    const task = await taskModel.findById(taskId);
+    if (!task || task.user_id !== userId) {
+      const error = new Error('任务不存在');
+      error.code = 1004;
+      throw error;
+    }
+
+    let params = null;
+    if (task.params) {
+      try {
+        params = typeof task.params === 'string' ? JSON.parse(task.params) : task.params;
+      } catch {
+        params = task.params;
+      }
+    }
+
+    return {
+      id: task.id,
+      user_id: task.user_id,
+      video_url: task.video_url,
+      result_url: task.result_url,
+      task_type: task.task_type,
+      status: task.status,
+      progress: task.progress,
+      points_cost: task.points_cost || 0,
+      params,
+      error_message: task.error_message,
+      retry_count: task.retry_count || 0,
+      priority: task.priority || 0,
+      created_at: task.created_at,
+      completed_at: task.completed_at,
+    };
+  },
+
+  async getTaskProgress(taskId, userId) {
+    const task = await taskModel.findById(taskId);
+    if (!task || task.user_id !== userId) {
+      const error = new Error('任务不存在');
+      error.code = 1004;
+      throw error;
+    }
+
+    return taskModel.getProgress(taskId);
+  },
+
+  async retryTask(taskId, userId) {
+    const task = await taskModel.findById(taskId);
+    if (!task || task.user_id !== userId) {
+      const error = new Error('任务不存在');
+      error.code = 1004;
+      throw error;
+    }
+
+    if (task.status !== 'failed') {
+      const error = new Error('只有失败的任务可以重新处理');
+      error.code = 400;
+      throw error;
+    }
+
+    if ((task.retry_count || 0) >= 3) {
+      const error = new Error('已达到最大重试次数');
+      error.code = 1007;
+      error.detail = 'TASK_RETRY_FAILED';
+      throw error;
+    }
+
+    const updatedTask = await taskModel.update(taskId, {
+      status: 'pending',
+      progress: 0,
+      error_message: null,
+      retry_count: (task.retry_count || 0) + 1,
+    });
+
+    // 异步处理
+    this._processTaskAsync(taskId).catch((err) => {
+      logger.error(`任务重试失败: ${taskId}`, err);
+    });
+
+    return {
+      id: updatedTask.id,
+      status: updatedTask.status,
+      progress: updatedTask.progress,
+      retry_count: updatedTask.retry_count,
+      created_at: updatedTask.created_at,
+    };
+  },
+
+  async cancelTask(taskId, userId) {
+    const task = await taskModel.findById(taskId);
+    if (!task || task.user_id !== userId) {
+      const error = new Error('任务不存在');
+      error.code = 1004;
+      throw error;
+    }
+
+    if (!['pending', 'processing'].includes(task.status)) {
+      const error = new Error('只有待处理或处理中的任务可以取消');
+      error.code = 400;
+      throw error;
+    }
+
+    await taskModel.cancel(taskId);
+
+    // 退还积分
+    if (task.points_cost > 0) {
+      try {
+        await pointsLogModel.addPoints(
+          userId,
+          task.points_cost,
+          `取消任务退还积分`,
+          null
+        );
+      } catch (err) {
+        logger.error(`取消任务退还积分失败: ${taskId}`, err);
+      }
+    }
+
+    return {
+      id: taskId,
+      status: 'cancelled',
+      points_refunded: task.points_cost || 0,
+    };
+  },
+
+  async deleteTask(taskId, userId) {
+    const task = await taskModel.findById(taskId);
+    if (!task || task.user_id !== userId) {
+      const error = new Error('任务不存在');
+      error.code = 1004;
+      throw error;
+    }
+
+    if (!['completed', 'failed', 'cancelled'].includes(task.status)) {
+      const error = new Error('只有已完成或失败的任务可以删除');
+      error.code = 400;
+      throw error;
+    }
+
+    await taskModel.softDelete(taskId);
+    return { id: taskId, deleted: true };
+  },
+
+  async getDownloadUrl(taskId, userId) {
+    const task = await taskModel.findById(taskId);
+    if (!task || task.user_id !== userId) {
+      const error = new Error('任务不存在');
+      error.code = 1004;
+      throw error;
+    }
+
+    if (task.status !== 'completed' || !task.result_url) {
+      const error = new Error('任务尚未完成');
+      error.code = 400;
+      throw error;
+    }
+
+    // 实际生产环境中会生成 OSS 预签名 URL
+    return {
+      download_url: task.result_url,
+      expires_in: 3600,
+      file_size: 0,
+      duration: 0,
+    };
+  },
+};
+
+module.exports = taskService;

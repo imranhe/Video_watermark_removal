@@ -1,0 +1,122 @@
+{
+	"pages": [
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "视频去字幕"
+			}
+		},
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationBarTitleText": "登录"
+			}
+		},
+		{
+			"path": "pages/user/user",
+			"style": {
+				"navigationBarTitleText": "个人中心"
+			}
+		},
+		{
+			"path": "pages/history/history",
+			"style": {
+				"navigationBarTitleText": "处理历史"
+			}
+		},
+		{
+			"path": "pages/privacy/privacy",
+			"style": {
+				"navigationBarTitleText": "隐私政策"
+			}
+		},
+		{
+			"path": "pages/terms/terms",
+			"style": {
+				"navigationBarTitleText": "用户服务协议"
+			}
+		}
+	],
+	"subPackages": [
+		{
+			"root": "pages-sub/video",
+			"pages": [
+				{
+					"path": "upload",
+					"style": {
+						"navigationBarTitleText": "上传视频"
+					}
+				},
+				{
+					"path": "preview",
+					"style": {
+						"navigationBarTitleText": "视频预览"
+					}
+				},
+				{
+					"path": "processing",
+					"style": {
+						"navigationBarTitleText": "处理中",
+						"navigationBarBackgroundColor": "#007AFF",
+						"navigationBarTextStyle": "white"
+					}
+				},
+				{
+					"path": "result",
+					"style": {
+						"navigationBarTitleText": "处理结果"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages-sub/service",
+			"pages": [
+				{
+					"path": "recharge",
+					"style": {
+						"navigationBarTitleText": "充值中心"
+					}
+				}
+			]
+		}
+	],
+	"preloadRule": {
+		"pages/index/index": {
+			"network": "all",
+			"packages": ["pages-sub/video"]
+		}
+	},
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "视频去字幕",
+		"navigationBarBackgroundColor": "#F8F8F8",
+		"backgroundColor": "#F8F8F8"
+	},
+	"tabBar": {
+		"color": "#999",
+		"selectedColor": "#007AFF",
+		"borderStyle": "black",
+		"backgroundColor": "#ffffff",
+		"list": [
+			{
+				"pagePath": "pages/index/index",
+				"text": "首页",
+				"iconPath": "static/tab/home.png",
+				"selectedIconPath": "static/tab/home-active.png"
+			},
+			{
+				"pagePath": "pages/history/history",
+				"text": "历史",
+				"iconPath": "static/tab/history.png",
+				"selectedIconPath": "static/tab/history-active.png"
+			},
+			{
+				"pagePath": "pages/user/user",
+				"text": "我的",
+				"iconPath": "static/tab/user.png",
+				"selectedIconPath": "static/tab/user-active.png"
+			}
+		]
+	}
+}
