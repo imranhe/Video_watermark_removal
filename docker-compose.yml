@@ -18,7 +18,7 @@ services:
   # 后端服务 (待配置)
   backend:
     build:
-      context: ./backend
+      context: ./server
       dockerfile: Dockerfile
     container_name: video-remover-backend
     ports:

@@ -25,7 +25,7 @@ export async function checkText(text: string): Promise<AuditResult> {
       }
     });
 
-    if (result.data.errcode === 0) {
+    if (typeof result.data === 'object' && result.data !== null && 'errcode' in result.data && (result.data as any).errcode === 0) {
       return { pass: true };
     } else {
       return { pass: false, detail: '内容包含违规信息' };
@@ -57,7 +57,7 @@ export async function checkImage(imagePath: string): Promise<AuditResult> {
       }
     });
 
-    if (result.data.errcode === 0) {
+    if (typeof result.data === 'object' && result.data !== null && 'errcode' in result.data && (result.data as any).errcode === 0) {
       return { pass: true };
     } else {
       return { pass: false, detail: '图片包含违规内容' };

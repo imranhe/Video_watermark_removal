@@ -1,6 +1,7 @@
 {
     "name" : "视频去字幕",
     "appid" : "__UNI__XXXXXXX",
+    "_comment_appid" : "TODO: 替换为真实的 uni-app AppID",
     "description" : "一键去除视频中的字幕和图标",
     "versionName" : "1.0.0",
     "versionCode" : "100",
@@ -60,6 +61,7 @@
     /* 小程序特有相关 */
     "mp-weixin" : {
         "appid" : "wx__YOUR_APPID__",
+        "_comment_appid" : "TODO: 替换为真实的微信小程序 AppID",
         "setting" : {
             "urlCheck" : false,
             "es6" : true,

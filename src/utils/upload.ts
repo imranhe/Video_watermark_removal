@@ -3,7 +3,7 @@
  * 支持多端适配、分片上传、进度追踪、断点续传
  */
 
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { getPlatform, isWeixin, isAlipay, isH5 } from './platform';
 
 // 上传状态类型
@@ -385,10 +385,10 @@ export function useVideoUpload(config: UploadConfig = {}) {
     try {
       // 顺序上传分片（可改为并发上传提高效率）
       for (const chunk of chunks.value) {
-        if (status.value === 'paused') {
+        if ((status.value as UploadStatus) === 'paused') {
           // 暂停状态，等待恢复
           await new Promise<void>((resolve) => {
-            const unwatch = watch(isPaused, (paused) => {
+            const unwatch = watch(isPaused, (paused: boolean) => {
               if (!paused) {
                 unwatch();
                 resolve();

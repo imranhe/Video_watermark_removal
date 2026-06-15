@@ -18,9 +18,34 @@ dist
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+*.swp
+*~
+
+# macOS
+._*
+
 # Server
 server/node_modules/
 server/logs/
 server/uploads/
 server/.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# 上传临时文件
+uploads/
+*.tmp
+*.temp
+
+# 视频文件（大文件）
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# 生产环境配置
+.env.production
+.env.prod

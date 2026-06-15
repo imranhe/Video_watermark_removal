@@ -1,43 +1,35 @@
-# Auto detect text files and perform LF normalization
-* text=auto eol=lf
+# 确保跨平台行尾一致性
+* text=auto
 
-# Explicitly declare text files
-*.html text encoding=utf-8
-*.css text encoding=utf-8
-*.js text encoding=utf-8
-*.ts text encoding=utf-8
-*.json text encoding=utf-8
-*.vue text encoding=utf-8
-*.md text encoding=utf-8
-*.yaml text encoding=utf-8
-*.yml text encoding=utf-8
-*.xml text encoding=utf-8
-*.sql text encoding=utf-8
-*.sh text encoding=utf-8
-*.env text encoding=utf-8
-*.example text encoding=utf-8
+# 文本文件使用 LF
+*.js text eol=lf
+*.ts text eol=lf
+*.vue text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+*.sql text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
 
-# Declare files that will always have CRLF line endings on checkout
-*.bat text eol=crlf
-
-# Denote all files that are truly binary and should not be modified
+# 二进制文件
 *.png binary
 *.jpg binary
 *.jpeg binary
 *.gif binary
 *.ico binary
-*.mov binary
-*.mp4 binary
-*.mp3 binary
-*.flv binary
-*.fla binary
-*.swf binary
-*.gz binary
-*.zip binary
-*.7z binary
-*.ttf binary
-*.eot binary
+*.svg binary
 *.woff binary
 *.woff2 binary
-*.pyc binary
-*.pdf binary
+*.ttf binary
+*.eot binary
+*.mp4 binary
+*.avi binary
+*.mov binary
+
+# Windows 批处理文件使用 CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf

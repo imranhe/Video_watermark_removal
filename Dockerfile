@@ -20,7 +20,7 @@ RUN npm run build:h5
 FROM nginx:alpine
 
 # 复制构建产物
-COPY --from=builder /app/dist/h5 /usr/share/nginx/html
+COPY --from=builder /app/dist/build /usr/share/nginx/html
 
 # 复制 nginx 配置
 COPY nginx.conf /etc/nginx/conf.d/default.conf
