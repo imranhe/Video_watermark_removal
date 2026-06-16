@@ -3,16 +3,7 @@
  */
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-
-interface Order {
-  id: string;
-  userId: string;
-  amount: number;
-  credits: number;
-  status: 'pending' | 'paid' | 'cancelled';
-  platform: 'wechat' | 'alipay';
-  createdAt: string;
-}
+import type { Order, OrderStatus, PaymentPlatform } from '@/types';
 
 export const useOrderStore = defineStore('order', () => {
   // State
@@ -36,7 +27,7 @@ export const useOrderStore = defineStore('order', () => {
 
     try {
       // TODO: 调用后端创建订单接口
-      // const response = await post<Order>('/api/orders/create', {
+      // const response = await post<Order>('/v1/orders/create', {
       //   amount,
       //   credits,
       //   platform,
@@ -69,7 +60,7 @@ export const useOrderStore = defineStore('order', () => {
   async function payOrder(orderId: string) {
     try {
       // TODO: 调用支付接口
-      // await post(`/api/orders/${orderId}/pay`);
+      // await post(`/v1/orders/${orderId}/pay`);
 
       // Mock 实现
       const order = orders.value.find((o) => o.id === orderId);

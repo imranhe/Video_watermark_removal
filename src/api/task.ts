@@ -39,7 +39,7 @@ export interface TaskListResponse {
  * 创建处理任务
  */
 export async function createTask(params: CreateTaskParams): Promise<Task> {
-  const response = await post<Task>('/api/tasks/create', params);
+  const response = await post<Task>('/v1/tasks/create', params);
   return response.data;
 }
 
@@ -47,7 +47,7 @@ export async function createTask(params: CreateTaskParams): Promise<Task> {
  * 获取任务详情
  */
 export async function getTask(taskId: string): Promise<Task> {
-  const response = await get<Task>(`/api/tasks/${taskId}`);
+  const response = await get<Task>(`/v1/tasks/${taskId}`);
   return response.data;
 }
 
@@ -59,7 +59,7 @@ export async function getUserTasks(
   page: number = 1,
   pageSize: number = 20
 ): Promise<TaskListResponse> {
-  const response = await get<TaskListResponse>(`/api/tasks/user/${userId}`, {
+  const response = await get<TaskListResponse>(`/v1/tasks/user/${userId}`, {
     page,
     pageSize,
   });
@@ -70,14 +70,14 @@ export async function getUserTasks(
  * 取消任务
  */
 export async function cancelTask(taskId: string): Promise<void> {
-  await put(`/api/tasks/${taskId}/cancel`);
+  await put(`/v1/tasks/${taskId}/cancel`);
 }
 
 /**
  * 重试任务
  */
 export async function retryTask(taskId: string): Promise<Task> {
-  const response = await post<Task>(`/api/tasks/${taskId}/retry`);
+  const response = await post<Task>(`/v1/tasks/${taskId}/retry`);
   return response.data;
 }
 
@@ -85,5 +85,5 @@ export async function retryTask(taskId: string): Promise<Task> {
  * 删除任务
  */
 export async function deleteTask(taskId: string): Promise<void> {
-  await post(`/api/tasks/${taskId}/delete`);
+  await post(`/v1/tasks/${taskId}/delete`);
 }

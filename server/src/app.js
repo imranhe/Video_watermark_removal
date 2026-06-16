@@ -6,6 +6,8 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const { errorHandler, notFoundHandler } = require('./middleware/error.middleware');
+const { requestIdMiddleware, securityAuditMiddleware, errorContextMiddleware } = require('./middleware/request-id.middleware');
+const { globalLimiter, authLimiter, uploadLimiter, paymentLimiter } = require('./middleware/rate-limit.middleware');
 const logger = require('./utils/logger');
 
 // 路由
@@ -26,16 +28,26 @@ const app = express();
 // 中间件
 // ============================================
 
+// Request ID and tracing
+app.use(requestIdMiddleware);
+
 // 安全头部
 app.use(helmet());
 
 // CORS
 app.use(cors({
-  origin: '*',
+  origin: process.env.CORS_ORIGIN || '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+  exposedHeaders: ['X-Request-ID'],
   credentials: true,
 }));
+
+// 全局速率限制
+if (process.env.ENABLE_RATE_LIMITING !== 'false') {
+  app.use(globalLimiter);
+  logger.info('Rate limiting enabled');
+}
 
 // 请求日志
 app.use(morgan('combined', {
@@ -47,6 +59,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.text({ type: 'text/xml' }));
 
+// 安全审计
+app.use(securityAuditMiddleware);
+
 // 静态文件 - 上传目录
 app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 
@@ -54,11 +69,20 @@ app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 // API 路由 - 挂载到 /v1
 // ============================================
 
-app.use('/v1/auth', authRoutes);
+// 认证路由（严格速率限制）
+app.use('/v1/auth', authLimiter, authRoutes);
+
+// 用户路由
 app.use('/v1/user', userRoutes);
-app.use('/v1/tasks', taskRoutes);
+
+// 任务路由（带上传速率限制）
+app.use('/v1/tasks', uploadLimiter, taskRoutes);
+
+// 支付路由（严格速率限制）
+app.use('/v1/orders', paymentLimiter, orderRoutes);
+
+// 其他路由
 app.use('/v1/packages', packageRoutes);
-app.use('/v1/orders', orderRoutes);
 app.use('/v1/points', pointsRoutes);
 app.use('/v1/notifications', notificationRoutes);
 app.use('/v1/feedbacks', feedbackRoutes);
@@ -73,6 +97,9 @@ app.get('/health', (req, res) => {
 // ============================================
 // 错误处理
 // ============================================
+
+// 错误上下文增强
+app.use(errorContextMiddleware);
 
 // 业务错误码处理
 app.use((err, req, res, next) => {

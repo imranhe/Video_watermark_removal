@@ -82,7 +82,7 @@ export function useTaskPoller(config: PollingConfig = {}) {
     onError?: ErrorCallback
   ): void {
     try {
-      eventSource = new EventSource(`${apiBase}/api/tasks/${taskId}/stream`);
+      eventSource = new EventSource(`${apiBase}/v1/tasks/${taskId}/stream`);
 
       eventSource.onmessage = (event) => {
         try {
@@ -132,7 +132,7 @@ export function useTaskPoller(config: PollingConfig = {}) {
       try {
         // #ifdef H5
         uni.request({
-          url: `${apiBase}/api/tasks/${taskId}`,
+          url: `${apiBase}/v1/tasks/${taskId}`,
           method: 'GET',
           success: (res) => {
             if (res.statusCode === 200) {
@@ -160,7 +160,7 @@ export function useTaskPoller(config: PollingConfig = {}) {
 
         // #ifndef H5
         uni.request({
-          url: `${apiBase}/api/tasks/${taskId}`,
+          url: `${apiBase}/v1/tasks/${taskId}`,
           method: 'GET',
           success: (res) => {
             if (res.statusCode === 200) {

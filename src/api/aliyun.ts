@@ -74,7 +74,7 @@ export class AliyunMPSClient {
     const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
     // 通过后端调用阿里云接口（避免前端暴露 AccessKey）
-    const response = await post<SubmitJobResponse>(`${API_BASE}/api/aliyun/submit-job`, {
+    const response = await post<SubmitJobResponse>(`${API_BASE}/v1/aliyun/submit-job`, {
       videoUrl,
       processType,
       params,
@@ -94,7 +94,7 @@ export class AliyunMPSClient {
   async queryJob(jobId: string): Promise<TaskState> {
     const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
-    const response = await get<TaskState>(`${API_BASE}/api/aliyun/query-job/${jobId}`);
+    const response = await get<TaskState>(`${API_BASE}/v1/aliyun/query-job/${jobId}`);
     return response.data;
   }
 
@@ -104,7 +104,7 @@ export class AliyunMPSClient {
   async queryJobs(jobIds: string[]): Promise<TaskState[]> {
     const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
-    const response = await post<TaskState[]>(`${API_BASE}/api/aliyun/query-jobs`, {
+    const response = await post<TaskState[]>(`${API_BASE}/v1/aliyun/query-jobs`, {
       jobIds,
     });
     return response.data;

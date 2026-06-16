@@ -2,7 +2,7 @@ const orderModel = require('../models/order.model');
 const packageModel = require('../models/package.model');
 const pointsLogModel = require('../models/points-log.model');
 const userModel = require('../models/user.model');
-const { createPayment } = require('../utils/payment');
+const wechatPayClient = require('../utils/payment');
 const logger = require('../utils/logger');
 
 const orderService = {
@@ -19,11 +19,19 @@ const orderService = {
       throw error;
     }
 
+    // 获取用户 openid
+    const user = await userModel.findById(userId);
+    if (!user) {
+      const error = new Error('用户不存在');
+      error.code = 1002;
+      throw error;
+    }
+
     // 创建支付参数
     const orderNo = `ORD${Date.now()}${Math.floor(Math.random() * 10000)}`;
-    const paymentParams = await createPayment(
+    const paymentParams = await wechatPayClient.createPayment(
       orderNo,
-      userId,
+      user.openid,
       pkg.price,
       pkg.name
     );

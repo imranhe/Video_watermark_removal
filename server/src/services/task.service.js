@@ -2,6 +2,8 @@ const taskModel = require('../models/task.model');
 const pointsLogModel = require('../models/points-log.model');
 const systemConfigModel = require('../models/system-config.model');
 const userModel = require('../models/user.model');
+const ossClient = require('../integrations/aliyun-oss');
+const { taskQueueManager } = require('../jobs/task-processor');
 const logger = require('../utils/logger');
 
 const TASK_POINTS_COST = {
@@ -44,10 +46,28 @@ const taskService = {
       }
     }
 
-    // 构建视频URL (本地存储路径)
-    const videoUrl = `/uploads/${videoFile.filename}`;
+    // Upload video to OSS (if not already uploaded)
+    let videoUrl = videoFile.path;
+    if (process.env.OSS_ACCESS_KEY_ID && !videoFile.path.startsWith('https://')) {
+      try {
+        const uploadResult = await ossClient.uploadVideo(
+          videoFile.path,
+          userId,
+          videoFile.originalname
+        );
+        videoUrl = uploadResult.url;
+        logger.info('Video uploaded to OSS', { taskId: task.id, ossUrl: videoUrl });
+      } catch (ossError) {
+        logger.error('Failed to upload video to OSS, using local path', {
+          taskId: task.id,
+          error: ossError.message,
+        });
+        // Fallback to local path
+        videoUrl = `/uploads/${videoFile.filename}`;
+      }
+    }
 
-    // 创建任务
+    // Create task
     const params = region ? { region } : null;
     const task = await taskModel.create({
       user_id: userId,
@@ -57,13 +77,23 @@ const taskService = {
       points_cost: isVip ? 0 : pointsCost,
     });
 
-    // 更新用户统计
+    // Update user statistics
     await userModel.update(userId, { total_tasks: (user.total_tasks || 0) + 1 });
 
-    // 异步触发任务处理
-    this._processTaskAsync(task.id).catch((err) => {
-      logger.error(`任务处理失败: ${task.id}`, err);
-    });
+    // Add task to BullMQ processing queue
+    try {
+      const jobId = await taskQueueManager.addTask(task.id, videoUrl, taskType, region);
+      logger.info('Task added to processing queue', { taskId: task.id, jobId });
+    } catch (queueError) {
+      logger.error('Failed to add task to queue, processing inline', {
+        taskId: task.id,
+        error: queueError.message,
+      });
+      // Fallback: process inline (for development/testing)
+      this._processTaskAsync(task.id).catch((err) => {
+        logger.error(`任务处理失败: ${task.id}`, err);
+      });
+    }
 
     return {
       id: task.id,
@@ -77,6 +107,9 @@ const taskService = {
     };
   },
 
+  /**
+   * Legacy async processing (fallback when queue unavailable)
+   */
   async _processTaskAsync(taskId) {
     // 在实际生产环境中，这里会调用 Bull 队列或直接调用处理服务
     // 这里模拟任务处理流程
@@ -280,13 +313,40 @@ const taskService = {
       throw error;
     }
 
-    // 实际生产环境中会生成 OSS 预签名 URL
-    return {
-      download_url: task.result_url,
-      expires_in: 3600,
-      file_size: 0,
-      duration: 0,
-    };
+    // Generate pre-signed URL for OSS download
+    try {
+      if (task.result_url.startsWith('https://') && process.env.OSS_ACCESS_KEY_ID) {
+        const ossKey = ossClient.extractKey(task.result_url);
+        const downloadUrl = await ossClient.getSignedUrl(ossKey, 3600);
+
+        // Get file metadata
+        let fileSize = 0;
+        try {
+          const metadata = await ossClient.getMetadata(ossKey);
+          fileSize = metadata.size;
+        } catch (metaError) {
+          logger.warn('Failed to get file metadata', { ossKey, error: metaError.message });
+        }
+
+        return {
+          download_url: downloadUrl,
+          expires_in: 3600,
+          file_size: fileSize,
+          duration: 0, // TODO: Extract from video metadata
+        };
+      }
+
+      // Fallback to local file
+      return {
+        download_url: task.result_url,
+        expires_in: 3600,
+        file_size: 0,
+        duration: 0,
+      };
+    } catch (error) {
+      logger.error('Failed to generate download URL', { taskId, error: error.message });
+      throw error;
+    }
   },
 };
 

@@ -4,20 +4,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { useTaskPoller } from '@/utils/poller';
-
-interface Task {
-  id: string;
-  userId: string;
-  videoUrl: string;
-  resultUrl: string | null;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  taskType: 'subtitle' | 'icon';
-  params: Record<string, any>;
-  progress: number;
-  createdAt: string;
-  completedAt: string | null;
-  errorMessage?: string;
-}
+import type { Task, TaskStatus, TaskType } from '@/types';
 
 export const useTaskStore = defineStore('task', () => {
   // State
@@ -53,7 +40,7 @@ export const useTaskStore = defineStore('task', () => {
     try {
       const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
       const response = await uni.request({
-        url: `${API_BASE}/api/tasks/create`,
+        url: `${API_BASE}/v1/tasks/create`,
         method: 'POST',
         data: { videoUrl, taskType, params },
       });
@@ -118,7 +105,7 @@ export const useTaskStore = defineStore('task', () => {
     try {
       const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
       const response = await uni.request({
-        url: `${API_BASE}/api/tasks/${taskId}`,
+        url: `${API_BASE}/v1/tasks/${taskId}`,
         method: 'GET',
       });
 
@@ -149,7 +136,7 @@ export const useTaskStore = defineStore('task', () => {
     try {
       const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
       const response = await uni.request({
-        url: `${API_BASE}/api/tasks/user/${userId}`,
+        url: `${API_BASE}/v1/tasks/user/${userId}`,
         method: 'GET',
       });
 

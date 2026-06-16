@@ -1,51 +1,51 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
+# macOS
+._*
 .DS_Store
-dist
-*.local
-
-# Editor directories and files
-.idea
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
 *.swp
 *~
 
-# macOS
+# Node
+node_modules/
+dist/
+.env
+package-lock.json
+
+# Claude Code internal
+.claude/
+.claude-plugins/
+.agents/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# macOS 元数据
 ._*
+.DS_Store
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+.fseventsd
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
 
-# Server
-server/node_modules/
-server/logs/
-server/uploads/
-server/.env
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-
-# 上传临时文件
-uploads/
+# 临时文件
 *.tmp
 *.temp
+*~
+\#*\#
 
-# 视频文件（大文件）
-*.mp4
-*.avi
-*.mov
-*.mkv
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# 生产环境配置
-.env.production
-.env.prod
+# 环境变量
+.env
+.env.local
+.env.*.local

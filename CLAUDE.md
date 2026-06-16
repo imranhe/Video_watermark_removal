@@ -1,1 +1,0 @@
-video-subtitle-remover/CLAUDE.md

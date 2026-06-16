@@ -3,15 +3,7 @@
  */
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-
-interface UserInfo {
-  id: string;
-  openid: string;
-  nickname: string;
-  avatarUrl: string;
-  balance: number;
-  createdAt: string;
-}
+import type { UserInfo } from '@/types';
 
 export const useUserStore = defineStore('user', () => {
   // State
@@ -40,7 +32,7 @@ export const useUserStore = defineStore('user', () => {
         });
 
         // TODO: 调用后端登录接口
-        // const response = await post<UserInfo>('/api/auth/wechat-login', { code });
+        // const response = await post<UserInfo>('/v1/auth/wechat-login', { code });
         // userInfo.value = response.data;
       }
       // #endif
@@ -56,7 +48,7 @@ export const useUserStore = defineStore('user', () => {
         });
 
         // TODO: 调用后端登录接口
-        // const response = await post<UserInfo>('/api/auth/alipay-login', { authCode });
+        // const response = await post<UserInfo>('/v1/auth/alipay-login', { authCode });
         // userInfo.value = response.data;
       }
       // #endif

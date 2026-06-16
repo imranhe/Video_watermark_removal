@@ -60,7 +60,7 @@
     "quickapp" : {},
     /* 小程序特有相关 */
     "mp-weixin" : {
-        "appid" : "wx__YOUR_APPID__",
+        "appid" : "wx9f912775c8453390",
         "_comment_appid" : "TODO: 替换为真实的微信小程序 AppID",
         "setting" : {
             "urlCheck" : false,
