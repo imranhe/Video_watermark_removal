@@ -1,38 +1,57 @@
 <template>
-  <view class="container">
-    <view class="header">
-      <view class="success-icon">✓</view>
-      <view class="title">处理完成</view>
+  <view class="page">
+    <view class="success-section">
+      <view class="success-circle">
+        <text class="success-char">✓</text>
+      </view>
+      <text class="success-title">处理完成</text>
     </view>
 
-    <view class="content">
-      <!-- 结果视频 -->
-      <view class="video-section" v-if="resultUrl">
-        <video :src="resultUrl" class="video-player" controls></video>
+    <!-- Before/After comparison -->
+    <view class="compare-card" v-if="resultUrl">
+      <view class="compare-tabs">
+        <view class="compare-tab" :class="{ active: viewMode === 'result' }" @tap="viewMode = 'result'">
+          <text class="compare-tab-text">处理后</text>
+        </view>
+        <view class="compare-tab" :class="{ active: viewMode === 'compare' }" @tap="viewMode = 'compare'">
+          <text class="compare-tab-text">对比</text>
+        </view>
       </view>
+      <view class="video-wrap">
+        <video :src="resultUrl" class="video-player" controls v-if="viewMode === 'result'"></video>
+        <view class="compare-split" v-else>
+          <view class="compare-half">
+            <text class="compare-label">原视频</text>
+            <video :src="originalUrl" class="video-half" controls></video>
+          </view>
+          <view class="compare-half">
+            <text class="compare-label">处理后</text>
+            <video :src="resultUrl" class="video-half" controls></video>
+          </view>
+        </view>
+      </view>
+    </view>
 
-      <!-- 任务信息 -->
-      <view class="info-card" v-if="currentTask">
-        <view class="info-row">
-          <text class="info-label">任务类型</text>
-          <text class="info-value">{{ currentTask.taskType === 'subtitle' ? '去除字幕' : '去除图标' }}</text>
-        </view>
-        <view class="info-row">
-          <text class="info-label">处理状态</text>
-          <text class="info-value success">已完成</text>
-        </view>
-        <view class="info-row">
-          <text class="info-label">完成时间</text>
-          <text class="info-value">{{ formatTime(currentTask.completedAt || currentTask.createdAt) }}</text>
-        </view>
-      </view>
+    <!-- Task info (via TaskStatus component) -->
+    <TaskStatus
+      v-if="currentTask"
+      compact
+      :task-id="currentTask.id"
+      :status="currentTask.status"
+      :task-type="currentTask.taskType"
+      :progress="currentTask.progress"
+      :created-at="currentTask.createdAt"
+      :completed-at="currentTask.completedAt"
+      :error-message="currentTask.errorMessage"
+      :result-url="currentTask.resultUrl"
+      @download="downloadResult"
+    />
 
-      <!-- 操作按钮 -->
-      <view class="actions">
-        <button class="btn-primary" @tap="downloadResult">保存到相册</button>
-        <button class="btn-secondary" @tap="shareResult">分享结果</button>
-        <button class="btn-outline" @tap="goHome">返回首页</button>
-      </view>
+    <!-- Actions -->
+    <view class="actions">
+      <button class="btn-primary" @tap="downloadResult">保存到相册</button>
+      <button class="btn-share" @tap="shareResult">分享给好友</button>
+      <button class="btn-outline" @tap="goHome">返回首页</button>
     </view>
   </view>
 </template>
@@ -41,10 +60,21 @@
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { useTaskStore } from '@/store/task';
+import { onShareAppMessage } from '@dcloudio/uni-app';
+import TaskStatus from '@/components/TaskStatus.vue';
+
+// #ifdef MP-WEIXIN
+onShareAppMessage(() => ({
+  title: '视频去字幕 - AI智能去除视频水印',
+  path: '/pages/index/index',
+}));
+// #endif
 
 const taskStore = useTaskStore();
 const currentTask = computed(() => taskStore.currentTask);
 const resultUrl = computed(() => currentTask.value?.resultUrl || '');
+const originalUrl = computed(() => currentTask.value?.videoUrl || '');
+const viewMode = ref<'result' | 'compare'>('result');
 
 onLoad((options) => {
   if (options?.taskId) {
@@ -55,126 +85,191 @@ onLoad((options) => {
 function downloadResult() {
   if (!resultUrl.value) return;
   uni.showLoading({ title: '保存中...' });
-  uni.saveVideoToPhotosAlbum({
-    filePath: resultUrl.value,
+  uni.authorize({
+    scope: 'scope.writePhotosAlbum',
     success: () => {
-      uni.hideLoading();
-      uni.showToast({ title: '已保存到相册', icon: 'success' });
+      uni.saveVideoToPhotosAlbum({
+        filePath: resultUrl.value,
+        success: () => {
+          uni.hideLoading();
+          uni.showToast({ title: '已保存到相册', icon: 'success' });
+        },
+        fail: () => {
+          uni.hideLoading();
+          uni.showToast({ title: '保存失败', icon: 'none' });
+        },
+      });
     },
     fail: () => {
       uni.hideLoading();
-      uni.showToast({ title: '保存失败', icon: 'none' });
+      uni.showModal({
+        title: '提示',
+        content: '需要您授权保存到相册，是否去设置开启？',
+        success: (res) => {
+          if (res.confirm) {
+            uni.openSetting({
+              success: (settingRes) => {
+                if (settingRes.authSetting['scope.writePhotosAlbum']) {
+                  downloadResult();
+                }
+              },
+            });
+          }
+        },
+      });
     },
   });
 }
 
 function shareResult() {
-  uni.showToast({ title: '分享功能开发中', icon: 'none' });
+  // #ifdef MP-WEIXIN
+  // 微信小程序通过右上角菜单分享，此处提示用户
+  uni.showToast({ title: '请点击右上角分享', icon: 'none' });
+  // #endif
+  // #ifndef MP-WEIXIN
+  uni.showToast({ title: '请使用系统分享功能', icon: 'none' });
+  // #endif
 }
 
 function goHome() {
   uni.switchTab({ url: '/pages/index/index' });
 }
-
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
 </script>
 
 <style scoped>
-.container {
-  padding: 20px;
+.page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--color-bg-primary);
+  padding: var(--space-4);
 }
-.header {
-  text-align: center;
-  margin-bottom: 20px;
+.success-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-6) 0 var(--space-4);
 }
-.success-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: #34c759;
-  color: #fff;
-  font-size: 30px;
+.success-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  background: var(--color-success);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 15px;
+  margin-bottom: var(--space-3);
 }
-.title {
-  font-size: 24px;
-  font-weight: bold;
-  color: #333;
+.success-char {
+  font-size: var(--font-size-2xl);
+  color: #fff;
+  font-weight: var(--font-weight-bold);
 }
-.content {
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
+.success-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
 }
-.video-section {
-  margin-bottom: 20px;
+
+/* Compare */
+.compare-card {
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+  margin-bottom: var(--space-4);
+}
+.compare-tabs {
+  display: flex;
+  border-bottom: 0.5px solid var(--color-separator);
+}
+.compare-tab {
+  flex: 1;
+  text-align: center;
+  padding: var(--space-3) 0;
+  border-bottom: 2px solid transparent;
+}
+.compare-tab.active {
+  border-bottom-color: var(--color-primary);
+}
+.compare-tab-text {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+.compare-tab.active .compare-tab-text {
+  color: var(--color-primary);
+}
+.video-wrap {
+  padding: var(--space-3);
 }
 .video-player {
   width: 100%;
   height: 220px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
-.info-card {
-  padding: 15px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  margin-bottom: 20px;
-}
-.info-row {
+.compare-split {
   display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
+  gap: var(--space-2);
 }
-.info-label {
-  font-size: 14px;
-  color: #666;
+.compare-half {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
-.info-value {
-  font-size: 14px;
-  color: #333;
-  font-weight: 500;
+.compare-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  text-align: center;
 }
-.info-value.success {
-  color: #34c759;
+.video-half {
+  width: 100%;
+  height: 160px;
+  border-radius: var(--radius-sm);
 }
+
+/* Actions */
 .actions {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .btn-primary {
   width: 100%;
-  height: 50px;
-  background: #007AFF;
+  height: var(--btn-height-lg);
+  background: var(--color-primary);
   color: #fff;
-  border-radius: 25px;
-  font-size: 16px;
-  font-weight: bold;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-md);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.btn-secondary {
+.btn-share {
   width: 100%;
-  height: 50px;
-  background: #34c759;
+  height: var(--btn-height-lg);
+  background: var(--color-success);
   color: #fff;
-  border-radius: 25px;
-  font-size: 16px;
-  font-weight: bold;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-md);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .btn-outline {
   width: 100%;
-  height: 44px;
+  height: var(--btn-height-md);
   background: transparent;
-  color: #007AFF;
-  border: 2px solid #007AFF;
-  border-radius: 22px;
-  font-size: 14px;
+  color: var(--color-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

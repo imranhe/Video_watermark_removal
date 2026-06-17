@@ -2,70 +2,73 @@
 	"pages": [
 		{
 			"path": "pages/index/index",
-			"style": {
-				"navigationBarTitleText": "视频去字幕"
-			}
+			"style": { "navigationBarTitleText": "视频去字幕" }
 		},
 		{
 			"path": "pages/login/login",
-			"style": {
-				"navigationBarTitleText": "登录"
-			}
+			"style": { "navigationBarTitleText": "登录" }
 		},
 		{
 			"path": "pages/user/user",
-			"style": {
-				"navigationBarTitleText": "个人中心"
-			}
+			"style": { "navigationBarTitleText": "个人中心" }
 		},
 		{
 			"path": "pages/history/history",
-			"style": {
-				"navigationBarTitleText": "处理历史"
-			}
+			"style": { "navigationBarTitleText": "处理历史" }
 		},
 		{
 			"path": "pages/privacy/privacy",
-			"style": {
-				"navigationBarTitleText": "隐私政策"
-			}
+			"style": { "navigationBarTitleText": "隐私政策" }
 		},
 		{
 			"path": "pages/terms/terms",
-			"style": {
-				"navigationBarTitleText": "用户服务协议"
-			}
+			"style": { "navigationBarTitleText": "用户服务协议" }
+		},
+		{
+			"path": "pages/about/about",
+			"style": { "navigationBarTitleText": "关于我们" }
+		},
+		{
+			"path": "pages/feedback/feedback",
+			"style": { "navigationBarTitleText": "意见反馈" }
+		},
+		{
+			"path": "pages/faq/faq",
+			"style": { "navigationBarTitleText": "常见问题" }
+		},
+		{
+			"path": "pages/records/records",
+			"style": { "navigationBarTitleText": "积分记录" }
 		}
 	],
+	"permission": {
+		"scope.writePhotosAlbum": {
+			"desc": "用于保存处理后的视频到相册"
+		}
+	},
 	"subPackages": [
 		{
 			"root": "pages-sub/video",
 			"pages": [
 				{
 					"path": "upload",
-					"style": {
-						"navigationBarTitleText": "上传视频"
-					}
+					"style": { "navigationBarTitleText": "上传视频" }
 				},
 				{
 					"path": "preview",
-					"style": {
-						"navigationBarTitleText": "视频预览"
-					}
+					"style": { "navigationBarTitleText": "视频预览" }
 				},
 				{
 					"path": "processing",
-					"style": {
-						"navigationBarTitleText": "处理中",
-						"navigationBarBackgroundColor": "#007AFF",
-						"navigationBarTextStyle": "white"
-					}
+					"style": { "navigationBarTitleText": "处理中", "navigationBarBackgroundColor": "#007AFF", "navigationBarTextStyle": "white" }
 				},
 				{
 					"path": "result",
-					"style": {
-						"navigationBarTitleText": "处理结果"
-					}
+					"style": { "navigationBarTitleText": "处理结果" }
+				},
+				{
+					"path": "link-parse",
+					"style": { "navigationBarTitleText": "链接解析" }
 				}
 			]
 		},
@@ -74,9 +77,11 @@
 			"pages": [
 				{
 					"path": "recharge",
-					"style": {
-						"navigationBarTitleText": "充值中心"
-					}
+					"style": { "navigationBarTitleText": "充值中心" }
+				},
+				{
+					"path": "vip",
+					"style": { "navigationBarTitleText": "会员中心" }
 				}
 			]
 		}

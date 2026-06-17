@@ -1,9 +1,11 @@
 <template>
-  <view class="container">
-    <view class="upload-header">
-      <view class="task-type-badge">{{ taskType === 'subtitle' ? '去除字幕' : '去除图标' }}</view>
-      <view class="upload-title">上传视频</view>
-      <view class="upload-subtitle">选择需要处理的视频文件</view>
+  <view class="page">
+    <!-- Task type badge -->
+    <view class="type-section">
+      <view class="type-badge" :class="taskType">
+        <text class="badge-char">{{ taskType === 'subtitle' ? '字' : '印' }}</text>
+      </view>
+      <text class="type-label">{{ taskType === 'subtitle' ? '去除字幕' : '去除图标' }}</text>
     </view>
 
     <VideoUploader
@@ -16,34 +18,35 @@
       @upload-error="handleUploadError"
     />
 
-    <!-- 处理选项 -->
-    <view v-if="selectedVideo" class="options-section">
-      <view class="option-title">处理选项</view>
-
-      <view class="option-item" v-if="taskType === 'subtitle'">
-        <text class="option-label">字幕位置</text>
-        <view class="option-buttons">
-          <button
-            class="option-btn"
-            :class="{ active: subtitlePosition === 'bottom' }"
-            @tap="subtitlePosition = 'bottom'"
-          >
-            底部
-          </button>
-          <button
-            class="option-btn"
-            :class="{ active: subtitlePosition === 'top' }"
-            @tap="subtitlePosition = 'top'"
-          >
-            顶部
-          </button>
-          <button
-            class="option-btn"
-            :class="{ active: subtitlePosition === 'custom' }"
-            @tap="subtitlePosition = 'custom'"
-          >
-            自定义
-          </button>
+    <!-- Processing options -->
+    <view v-if="selectedVideo" class="section">
+      <text class="section-title">处理选项</text>
+      <view class="card" v-if="taskType === 'subtitle'">
+        <view class="option-row">
+          <text class="option-label">字幕位置</text>
+          <view class="option-chips">
+            <view
+              class="chip"
+              :class="{ active: subtitlePosition === 'bottom' }"
+              @tap="subtitlePosition = 'bottom'"
+            >
+              <text class="chip-text">底部</text>
+            </view>
+            <view
+              class="chip"
+              :class="{ active: subtitlePosition === 'top' }"
+              @tap="subtitlePosition = 'top'"
+            >
+              <text class="chip-text">顶部</text>
+            </view>
+            <view
+              class="chip"
+              :class="{ active: subtitlePosition === 'custom' }"
+              @tap="subtitlePosition = 'custom'"
+            >
+              <text class="chip-text">自定义</text>
+            </view>
+          </view>
         </view>
       </view>
     </view>
@@ -51,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import VideoUploader from '@/components/VideoUploader.vue';
 
@@ -66,118 +69,125 @@ onLoad((options) => {
   }
 });
 
-// 视频选择回调
 function handleVideoSelect(video: any) {
   selectedVideo.value = video;
 }
-
-// 上传开始回调
 function handleUploadStart() {
   isUploading.value = true;
 }
-
-// 上传进度回调
 function handleUploadProgress(progress: any) {
   console.log('上传进度:', progress.percent);
 }
-
-// 上传成功回调
 function handleUploadSuccess(result: any) {
   isUploading.value = false;
-
-  // 跳转到预览页面
+  const videoPath = selectedVideo.value?.path || '';
   uni.navigateTo({
-    url: `/pages-sub/video/preview?fileId=${result.fileId}&type=${taskType.value}&position=${subtitlePosition.value}`,
+    url: `/pages-sub/video/preview?fileId=${result.fileId || ''}&type=${taskType.value}&position=${subtitlePosition.value}&videoPath=${encodeURIComponent(videoPath)}`,
   });
 }
-
-// 上传失败回调
 function handleUploadError(error: string) {
   isUploading.value = false;
-  uni.showToast({
-    title: error,
-    icon: 'none',
-  });
+  uni.showToast({ title: error, icon: 'none' });
 }
 </script>
 
 <style scoped>
-.container {
-  padding: 20px;
+.page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--color-bg-primary);
+  padding: var(--space-6) var(--space-4) var(--space-8);
 }
 
-.upload-header {
-  text-align: center;
-  margin-bottom: 30px;
-}
-
-.task-type-badge {
-  display: inline-block;
-  padding: 6px 16px;
-  background: #007AFF;
-  color: #fff;
-  font-size: 12px;
-  border-radius: 20px;
-  margin-bottom: 15px;
-}
-
-.upload-title {
-  font-size: 24px;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.upload-subtitle {
-  font-size: 14px;
-  color: #666;
-}
-
-.options-section {
-  margin-top: 30px;
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-}
-
-.option-title {
-  font-size: 18px;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 15px;
-}
-
-.option-item {
-  margin-bottom: 20px;
-}
-
-.option-label {
-  display: block;
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 10px;
-}
-
-.option-buttons {
+/* Type section */
+.type-section {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: var(--space-6);
+}
+.type-badge {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-2);
+}
+.type-badge.subtitle {
+  background: var(--color-primary-light);
+}
+.type-badge.icon {
+  background: var(--color-warning-light);
+}
+.badge-char {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+}
+.type-badge.icon .badge-char {
+  color: var(--color-warning);
+}
+.type-label {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
 }
 
-.option-btn {
+/* Section */
+.section {
+  margin-top: var(--space-6);
+}
+.section-title {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0 var(--space-4) var(--space-2);
+}
+
+/* Card */
+.card {
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-xs);
+}
+.option-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.option-label {
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+.option-chips {
+  display: flex;
+  gap: var(--space-2);
+}
+.chip {
   flex: 1;
-  height: 40px;
-  font-size: 14px;
-  background: #f5f5f5;
-  color: #666;
-  border-radius: 8px;
+  height: var(--btn-height-md);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
   border: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
 }
-
-.option-btn.active {
-  background: #e6f2ff;
-  color: #007AFF;
-  border-color: #007AFF;
+.chip.active {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+.chip-text {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+.chip.active .chip-text {
+  color: var(--color-primary);
 }
 </style>

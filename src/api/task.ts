@@ -3,24 +3,9 @@
  */
 
 import { get, post, put } from './request';
+import type { Task, TaskStatus, TaskType } from '@/types';
 
-// 任务类型定义
-export type TaskStatus = 'pending' | 'processing' | 'completed' | 'failed';
-export type TaskType = 'subtitle' | 'icon';
-
-export interface Task {
-  id: string;
-  userId: string;
-  videoUrl: string;
-  resultUrl: string | null;
-  status: TaskStatus;
-  taskType: TaskType;
-  params: Record<string, any>;
-  progress: number;
-  createdAt: string;
-  completedAt: string | null;
-  errorMessage?: string;
-}
+export type { Task, TaskStatus, TaskType };
 
 export interface CreateTaskParams {
   videoUrl: string;

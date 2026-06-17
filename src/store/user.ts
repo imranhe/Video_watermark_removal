@@ -21,37 +21,67 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
 
     try {
+      let code = '';
+
       // #ifdef MP-WEIXIN
       if (platform === 'wechat') {
-        const { code } = await new Promise<any>((resolve, reject) => {
+        const res = await new Promise<any>((resolve, reject) => {
           uni.login({
             provider: 'weixin',
             success: resolve,
             fail: reject,
           });
         });
-
-        // TODO: 调用后端登录接口
-        // const response = await post<UserInfo>('/v1/auth/wechat-login', { code });
-        // userInfo.value = response.data;
+        code = res.code;
       }
       // #endif
 
       // #ifdef MP-ALIPAY
       if (platform === 'alipay') {
-        const { authCode } = await new Promise<any>((resolve, reject) => {
+        const res = await new Promise<any>((resolve, reject) => {
           my.getAuthCode({
             scopes: 'auth_user',
             success: resolve,
             fail: reject,
           });
         });
-
-        // TODO: 调用后端登录接口
-        // const response = await post<UserInfo>('/v1/auth/alipay-login', { authCode });
-        // userInfo.value = response.data;
+        code = res.authCode;
       }
       // #endif
+
+      if (!code) {
+        throw new Error('获取登录凭证失败');
+      }
+
+      // 调用后端登录接口（微信用 wechat-login，支付宝用 alipay-login）
+      const { post, setToken } = await import('@/api/request');
+      const endpoint = platform === 'wechat' ? '/v1/auth/wechat-login' : '/v1/auth/alipay-login';
+      const response = await post<any>(endpoint, platform === 'wechat' ? { code } : { authCode: code });
+      const data = response.data;
+
+      // 保存 Token（后端返回 data.token 为字符串）
+      if (data.token) {
+        const tokenStr = typeof data.token === 'string' ? data.token : data.token.access_token;
+        setToken(tokenStr);
+      }
+
+      // 保存用户信息（后端返回 data.userInfo）
+      const userData = data.userInfo || data.user;
+      if (userData) {
+        userInfo.value = {
+          id: userData.id,
+          openid: userData.openid,
+          nickname: userData.nickname || '用户',
+          avatarUrl: userData.avatar_url || '',
+          balance: userData.balance || 0,
+          vipType: userData.vip_type || 'none',
+          vipExpireAt: userData.vip_expire_at || null,
+          totalTasks: 0,
+          totalSpent: 0,
+          createdAt: userData.created_at || new Date().toISOString(),
+          updatedAt: userData.updated_at || new Date().toISOString(),
+        };
+      }
     } catch (err: any) {
       error.value = err.message || '登录失败';
       throw err;

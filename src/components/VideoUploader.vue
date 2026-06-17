@@ -1,28 +1,15 @@
 <template>
   <view class="video-uploader">
-    <!-- 视频选择区域 -->
-    <view
-      class="upload-area"
-      :class="{ 'has-video': videoInfo }"
-      @tap="handleSelectVideo"
-    >
-      <!-- 无视频时显示 -->
+    <view class="upload-area" :class="{ 'has-video': videoInfo }" @tap="handleSelectVideo">
       <view v-if="!videoInfo" class="upload-placeholder">
-        <view class="upload-icon">📹</view>
-        <view class="upload-text">点击选择视频</view>
-        <view class="upload-hint">
-          支持 MP4、MOV 格式，最大 {{ maxSize }}MB
+        <view class="upload-icon-wrap">
+          <text class="upload-icon-char">+</text>
         </view>
+        <text class="upload-text">点击选择视频</text>
+        <text class="upload-hint">支持 MP4、MOV 格式，最大 {{ maxSize }}MB</text>
       </view>
-
-      <!-- 有视频时显示预览 -->
       <view v-else class="video-preview">
-        <video
-          :src="videoInfo.path"
-          class="video-player"
-          controls
-          :show-fullscreen-btn="false"
-        ></video>
+        <video :src="videoInfo.path" class="video-player" controls :show-fullscreen-btn="false"></video>
         <view class="video-info">
           <text class="video-name">{{ videoName }}</text>
           <text class="video-size">{{ formatSize(videoInfo.size) }}</text>
@@ -30,61 +17,38 @@
       </view>
     </view>
 
-    <!-- 上传进度 -->
     <view v-if="isUploading || isPaused" class="progress-section">
       <view class="progress-bar">
-        <view
-          class="progress-fill"
-          :style="{ width: `${progress.percent}%` }"
-        ></view>
+        <view class="progress-fill" :style="{ width: `${progress.percent}%` }"></view>
       </view>
       <view class="progress-info">
         <text class="progress-percent">{{ progress.percent }}%</text>
         <text class="progress-speed">{{ formatSpeed(progress.speed) }}</text>
       </view>
       <view class="progress-actions">
-        <button
-          v-if="isUploading"
-          class="btn-pause"
-          @tap="pauseUpload"
-        >
-          暂停
-        </button>
-        <button
-          v-if="isPaused"
-          class="btn-resume"
-          @tap="resumeUpload"
-        >
-          继续
-        </button>
+        <button v-if="isUploading" class="btn-pause" @tap="pauseUpload">暂停</button>
+        <button v-if="isPaused" class="btn-resume" @tap="resumeUpload">继续</button>
       </view>
     </view>
 
-    <!-- 上传完成 -->
     <view v-if="isCompleted" class="complete-section">
-      <view class="complete-icon">✅</view>
-      <view class="complete-text">上传完成</view>
+      <view class="complete-icon-wrap">
+        <text class="complete-char">✓</text>
+      </view>
+      <text class="complete-text">上传完成</text>
     </view>
 
-    <!-- 错误信息 -->
     <view v-if="hasError && error" class="error-section">
-      <view class="error-icon">❌</view>
-      <view class="error-text">{{ error }}</view>
+      <view class="error-icon-wrap">
+        <text class="error-char">!</text>
+      </view>
+      <text class="error-text">{{ error }}</text>
       <button class="btn-retry" @tap="reset">重新选择</button>
     </view>
 
-    <!-- 操作按钮 -->
     <view v-if="videoInfo && !isUploading && !isCompleted" class="action-buttons">
-      <button
-        class="btn-upload"
-        :disabled="!videoInfo"
-        @tap="handleStartUpload"
-      >
-        开始上传
-      </button>
-      <button class="btn-reset" @tap="reset">
-        重新选择
-      </button>
+      <button class="btn-upload" :disabled="!videoInfo" @tap="handleStartUpload">开始上传</button>
+      <button class="btn-reset" @tap="reset">重新选择</button>
     </view>
   </view>
 </template>
@@ -92,10 +56,11 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue';
 import { useVideoUpload } from '@/utils/upload';
+import { formatSize, formatSpeed } from '@/utils/format';
 
 interface Props {
-  maxSize?: number; // 最大文件大小（MB）
-  autoUpload?: boolean; // 选择后自动上传
+  maxSize?: number;
+  autoUpload?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -112,60 +77,27 @@ const emit = defineEmits<{
 }>();
 
 const {
-  status,
-  videoInfo,
-  progress,
-  error,
-  isUploading,
-  isPaused,
-  isCompleted,
-  hasError,
-  selectVideo,
-  startUpload,
-  pauseUpload,
-  resumeUpload,
-  reset,
+  status, videoInfo, progress, error,
+  isUploading, isPaused, isCompleted, hasError,
+  selectVideo, startUpload, pauseUpload, resumeUpload, reset,
 } = useVideoUpload({ maxFileSize: props.maxSize });
 
-// 视频名称
 const videoName = computed(() => {
   if (!videoInfo.value) return '';
-  const path = videoInfo.value.path;
-  return path.split('/').pop() || 'video.mp4';
+  return videoInfo.value.path.split('/').pop() || 'video.mp4';
 });
 
-// 格式化文件大小
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-// 格式化上传速度
-function formatSpeed(bytesPerSecond: number): string {
-  if (bytesPerSecond < 1024) return bytesPerSecond.toFixed(0) + ' B/s';
-  if (bytesPerSecond < 1024 * 1024) return (bytesPerSecond / 1024).toFixed(1) + ' KB/s';
-  return (bytesPerSecond / (1024 * 1024)).toFixed(1) + ' MB/s';
-}
-
-// 选择视频
 async function handleSelectVideo() {
   if (isUploading.value || isCompleted.value) return;
-
   const video = await selectVideo();
   if (video) {
     emit('select', video);
-
-    if (props.autoUpload) {
-      handleStartUpload();
-    }
+    if (props.autoUpload) handleStartUpload();
   }
 }
 
-// 开始上传
 async function handleStartUpload() {
   emit('upload-start');
-
   try {
     const result = await startUpload();
     emit('upload-success', result);
@@ -174,218 +106,133 @@ async function handleStartUpload() {
   }
 }
 
-// 监听进度变化
 watch(progress, (newProgress) => {
   emit('upload-progress', newProgress);
 }, { deep: true });
 </script>
 
 <style scoped>
-.video-uploader {
-  width: 100%;
-}
-
+.video-uploader { width: 100%; }
 .upload-area {
-  background: #fff;
-  border: 2px dashed #ddd;
-  border-radius: 12px;
+  background: var(--color-bg-secondary);
+  border: 2px dashed var(--color-separator);
+  border-radius: var(--radius-md);
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all var(--transition-fast);
 }
-
 .upload-area:active {
-  border-color: #007AFF;
-  background: #f8f9ff;
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
 }
-
 .upload-area.has-video {
   border-style: solid;
-  border-color: #007AFF;
+  border-color: var(--color-primary);
 }
-
 .upload-placeholder {
-  padding: 60px 20px;
+  padding: var(--space-16) var(--space-4);
   text-align: center;
 }
-
-.upload-icon {
-  font-size: 60px;
-  margin-bottom: 15px;
+.upload-icon-wrap {
+  width: 56px; height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-tertiary);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto var(--space-4);
 }
-
+.upload-icon-char {
+  font-size: var(--font-size-3xl);
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-light);
+}
 .upload-text {
-  font-size: 18px;
-  color: #333;
-  margin-bottom: 10px;
+  display: block;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
 }
-
 .upload-hint {
-  font-size: 12px;
-  color: #999;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
 }
-
-.video-preview {
-  position: relative;
-}
-
-.video-player {
-  width: 100%;
-  height: 200px;
-}
-
+.video-preview { position: relative; }
+.video-player { width: 100%; height: 200px; }
 .video-info {
-  padding: 10px 15px;
-  background: #f5f5f5;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-tertiary);
+  display: flex; justify-content: space-between; align-items: center;
 }
-
 .video-name {
-  font-size: 14px;
-  color: #333;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--font-size-sm); color: var(--color-text-primary);
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.video-size { font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-left: var(--space-3); }
 
-.video-size {
-  font-size: 12px;
-  color: #666;
-  margin-left: 10px;
+.progress-section { margin-top: var(--space-5); }
+.progress-bar { height: 4px; background: var(--color-separator); border-radius: var(--radius-full); overflow: hidden; }
+.progress-fill { height: 100%; background: var(--color-primary); border-radius: var(--radius-full); transition: width var(--transition-normal); }
+.progress-info { display: flex; justify-content: space-between; margin-top: var(--space-2); }
+.progress-percent { font-size: var(--font-size-xs); color: var(--color-primary); font-weight: var(--font-weight-medium); }
+.progress-speed { font-size: var(--font-size-xs); color: var(--color-text-tertiary); }
+.progress-actions { margin-top: var(--space-3); display: flex; gap: var(--space-3); }
+.btn-pause, .btn-resume {
+  flex: 1; height: var(--btn-height-sm);
+  border-radius: var(--radius-sm); border: none;
+  font-size: var(--font-size-sm); font-weight: var(--font-weight-medium);
+  display: flex; align-items: center; justify-content: center;
 }
+.btn-pause { background: var(--color-bg-tertiary); color: var(--color-text-secondary); }
+.btn-resume { background: var(--color-primary); color: #fff; }
 
-.progress-section {
-  margin-top: 20px;
-  padding: 15px;
-  background: #fff;
-  border-radius: 12px;
+.complete-section {
+  text-align: center; padding: var(--space-6) 0;
+  display: flex; flex-direction: column; align-items: center;
 }
-
-.progress-bar {
-  height: 8px;
-  background: #e9ecef;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 10px;
+.complete-icon-wrap {
+  width: 40px; height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--color-success);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: var(--space-2);
 }
+.complete-char { font-size: var(--font-size-lg); color: #fff; font-weight: var(--font-weight-bold); }
+.complete-text { font-size: var(--font-size-base); color: var(--color-success); font-weight: var(--font-weight-medium); }
 
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #007AFF, #00c6ff);
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-.progress-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.progress-percent {
-  font-size: 16px;
-  font-weight: bold;
-  color: #007AFF;
-}
-
-.progress-speed {
-  font-size: 12px;
-  color: #666;
-}
-
-.progress-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.btn-pause,
-.btn-resume {
-  flex: 1;
-  height: 36px;
-  font-size: 14px;
-  border-radius: 18px;
-  border: none;
-}
-
-.btn-pause {
-  background: #fff;
-  color: #666;
-  border: 1px solid #ddd;
-}
-
-.btn-resume {
-  background: #007AFF;
-  color: #fff;
-}
-
-.complete-section,
 .error-section {
-  margin-top: 20px;
-  padding: 20px;
-  background: #fff;
-  border-radius: 12px;
-  text-align: center;
+  text-align: center; padding: var(--space-6) 0;
+  display: flex; flex-direction: column; align-items: center;
 }
-
-.complete-icon,
-.error-icon {
-  font-size: 40px;
-  margin-bottom: 10px;
+.error-icon-wrap {
+  width: 40px; height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--color-error-light);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: var(--space-2);
 }
-
-.complete-text {
-  font-size: 16px;
-  color: #52c41a;
-}
-
-.error-text {
-  font-size: 14px;
-  color: #ff4d4f;
-  margin-bottom: 15px;
-}
-
+.error-char { font-size: var(--font-size-lg); color: var(--color-error); font-weight: var(--font-weight-bold); }
+.error-text { font-size: var(--font-size-sm); color: var(--color-error); margin-bottom: var(--space-3); }
 .btn-retry {
-  width: 120px;
-  height: 36px;
-  font-size: 14px;
-  background: #007AFF;
-  color: #fff;
-  border-radius: 18px;
-  border: none;
+  width: 120px; height: var(--btn-height-sm);
+  background: var(--color-error); color: #fff;
+  font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-sm); border: none;
+  display: inline-flex; align-items: center; justify-content: center;
 }
 
-.action-buttons {
-  margin-top: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
+.action-buttons { margin-top: var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); }
 .btn-upload {
-  width: 100%;
-  height: 50px;
-  background: #007AFF;
-  color: #fff;
-  font-size: 16px;
-  font-weight: bold;
-  border-radius: 25px;
-  border: none;
+  width: 100%; height: var(--btn-height-lg);
+  background: var(--color-primary); color: #fff;
+  font-size: var(--font-size-md); font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-md); border: none;
+  display: flex; align-items: center; justify-content: center;
 }
-
-.btn-upload:disabled {
-  background: #ccc;
-}
-
+.btn-upload[disabled] { opacity: 0.5; }
 .btn-reset {
-  width: 100%;
-  height: 50px;
-  background: #fff;
-  color: #666;
-  font-size: 16px;
-  border-radius: 25px;
-  border: 1px solid #ddd;
+  width: 100%; height: var(--btn-height-md);
+  background: transparent; color: var(--color-text-secondary);
+  font-size: var(--font-size-base); font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-md); border: 1px solid var(--color-separator);
+  display: flex; align-items: center; justify-content: center;
 }
 </style>

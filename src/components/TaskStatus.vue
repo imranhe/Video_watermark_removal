@@ -1,51 +1,34 @@
 <template>
   <view class="task-status">
-    <!-- 任务卡片 -->
-    <view class="task-card" :class="statusClass">
-      <!-- 状态图标 -->
-      <view class="status-icon">
-        <text v-if="status === 'pending'">⏳</text>
-        <text v-else-if="status === 'processing'">⚙️</text>
-        <text v-else-if="status === 'completed'">✅</text>
-        <text v-else-if="status === 'failed'">❌</text>
+    <view class="task-card" :class="`status-${status}`">
+      <view class="status-icon-wrap" :class="status">
+        <text class="status-icon-char">{{ iconChar }}</text>
       </view>
 
-      <!-- 任务信息 -->
       <view class="task-info">
-        <view class="task-type">{{ taskTypeLabel }}</view>
-        <view class="task-status-text">{{ statusLabel }}</view>
+        <text class="task-type">{{ taskTypeLabel }}</text>
+        <text class="task-status-text">{{ statusLabel }}</text>
       </view>
 
-      <!-- 进度条（仅处理中显示） -->
       <view v-if="status === 'processing'" class="progress-section">
         <view class="progress-bar">
-          <view
-            class="progress-fill"
-            :style="{ width: `${progress}%` }"
-          ></view>
+          <view class="progress-fill" :style="{ width: `${progress}%` }"></view>
         </view>
-        <view class="progress-text">{{ progress }}%</view>
+        <text class="progress-text">{{ progress }}%</text>
       </view>
 
-      <!-- 完成信息 -->
       <view v-if="status === 'completed'" class="complete-info">
-        <view class="complete-time">完成时间: {{ formatTime(completedAt) }}</view>
-        <button class="btn-download" @tap="handleDownload">
-          下载视频
-        </button>
+        <text class="complete-time">完成时间: {{ formatTime(completedAt) }}</text>
+        <button class="btn-download" @tap="handleDownload">下载视频</button>
       </view>
 
-      <!-- 错误信息 -->
       <view v-if="status === 'failed'" class="error-info">
-        <view class="error-message">{{ errorMessage }}</view>
-        <button class="btn-retry" @tap="handleRetry">
-          重新处理
-        </button>
+        <text class="error-message">{{ errorMessage }}</text>
+        <button class="btn-retry" @tap="handleRetry">重新处理</button>
       </view>
     </view>
 
-    <!-- 任务详情 -->
-    <view class="task-details">
+    <view class="task-details" v-if="!compact">
       <view class="detail-item">
         <text class="detail-label">任务ID</text>
         <text class="detail-value">{{ taskId }}</text>
@@ -63,20 +46,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, onMounted, onUnmounted } from 'vue';
-
-type TaskStatus = 'pending' | 'processing' | 'completed' | 'failed';
+import { computed } from 'vue';
+import { formatTime, formatDuration } from '@/utils/format';
+import type { TaskStatus as TaskStatusType } from '@/types';
 
 interface Props {
   taskId: string;
-  status: TaskStatus;
-  taskType: 'subtitle' | 'icon';
+  status: TaskStatusType;
+  taskType: 'subtitle' | 'watermark' | 'logo' | 'icon';
   progress: number;
   createdAt: string;
-  completedAt?: string;
-  errorMessage?: string;
+  completedAt?: string | null;
+  errorMessage?: string | null;
   videoDuration?: number;
-  resultUrl?: string;
+  resultUrl?: string | null;
+  /** Compact mode: hides task-details panel (useful when page already shows its own info) */
+  compact?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -84,6 +69,7 @@ const props = withDefaults(defineProps<Props>(), {
   errorMessage: '处理失败',
   videoDuration: 0,
   resultUrl: '',
+  compact: false,
 });
 
 const emit = defineEmits<{
@@ -91,218 +77,130 @@ const emit = defineEmits<{
   (e: 'retry', taskId: string): void;
 }>();
 
-// 任务类型标签
 const taskTypeLabel = computed(() => {
-  return props.taskType === 'subtitle' ? '去除字幕' : '去除图标';
+  const labels: Record<string, string> = {
+    subtitle: '去除字幕',
+    watermark: '去除水印',
+    logo: '去除图标',
+    icon: '去除图标',
+  };
+  return labels[props.taskType] || '视频处理';
 });
 
-// 状态标签
 const statusLabel = computed(() => {
-  const labels: Record<TaskStatus, string> = {
+  const labels: Record<string, string> = {
     pending: '等待处理中...',
     processing: '正在处理...',
     completed: '处理完成',
     failed: '处理失败',
+    cancelled: '已取消',
   };
-  return labels[props.status];
+  return labels[props.status] || props.status;
 });
 
-// 状态样式类
-const statusClass = computed(() => `status-${props.status}`);
+const iconChar = computed(() => {
+  const map: Record<string, string> = {
+    pending: '...',
+    processing: '↻',
+    completed: '✓',
+    failed: '!',
+    cancelled: '✕',
+  };
+  return map[props.status] || '?';
+});
 
-// 格式化时间
-function formatTime(timeStr?: string): string {
-  if (!timeStr) return '-';
-  const date = new Date(timeStr);
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-// 格式化时长
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds}秒`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}分${remainingSeconds}秒`;
-}
-
-// 下载处理结果
 function handleDownload() {
   if (props.resultUrl) {
     emit('download', props.resultUrl);
-
-    // H5端直接下载
     // #ifdef H5
     const link = document.createElement('a');
     link.href = props.resultUrl;
     link.download = `video_${props.taskId}.mp4`;
     link.click();
     // #endif
-
-    // 小程序端预览
     // #ifdef MP-WEIXIN,MP-ALIPAY
-    uni.previewMedia({
-      sources: [{
-        url: props.resultUrl,
-        type: 'video',
-      }],
-    });
+    uni.previewMedia({ sources: [{ url: props.resultUrl, type: 'video' }] });
     // #endif
   }
 }
 
-// 重试处理
 function handleRetry() {
   emit('retry', props.taskId);
 }
 </script>
 
 <style scoped>
-.task-status {
-  width: 100%;
-}
-
+.task-status { width: 100%; }
 .task-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 15px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  margin-bottom: var(--space-4);
+  box-shadow: var(--shadow-xs);
 }
+.task-card.status-pending { border-left: 4px solid var(--color-warning); }
+.task-card.status-processing { border-left: 4px solid var(--color-primary); }
+.task-card.status-completed { border-left: 4px solid var(--color-success); }
+.task-card.status-failed { border-left: 4px solid var(--color-error); }
+.task-card.status-cancelled { border-left: 4px solid var(--color-text-tertiary); }
 
-.task-card.status-pending {
-  border-left: 4px solid #faad14;
+.status-icon-wrap {
+  width: 40px; height: 40px;
+  border-radius: var(--radius-full);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: var(--space-3);
 }
+.status-icon-wrap.pending { background: var(--color-warning-light); }
+.status-icon-wrap.processing { background: var(--color-primary-light); }
+.status-icon-wrap.completed { background: var(--color-success-light); }
+.status-icon-wrap.failed { background: var(--color-error-light); }
+.status-icon-wrap.cancelled { background: var(--color-bg-tertiary); }
+.status-icon-char { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); }
+.status-icon-wrap.pending .status-icon-char { color: var(--color-warning); }
+.status-icon-wrap.processing .status-icon-char { color: var(--color-primary); }
+.status-icon-wrap.completed .status-icon-char { color: var(--color-success); }
+.status-icon-wrap.failed .status-icon-char { color: var(--color-error); }
+.status-icon-wrap.cancelled .status-icon-char { color: var(--color-text-tertiary); }
 
-.task-card.status-processing {
-  border-left: 4px solid #1890ff;
-}
+.task-info { margin-bottom: var(--space-3); }
+.task-type { display: block; font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); margin-bottom: 2px; }
+.task-status-text { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
 
-.task-card.status-completed {
-  border-left: 4px solid #52c41a;
-}
+.progress-section { margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-3); }
+.progress-bar { flex: 1; height: 4px; background: var(--color-separator); border-radius: var(--radius-full); overflow: hidden; }
+.progress-fill { height: 100%; background: var(--color-primary); border-radius: var(--radius-full); transition: width var(--transition-normal); }
+.progress-text { font-size: var(--font-size-xs); color: var(--color-primary); font-weight: var(--font-weight-medium); }
 
-.task-card.status-failed {
-  border-left: 4px solid #ff4d4f;
-}
-
-.status-icon {
-  font-size: 32px;
-  margin-bottom: 10px;
-}
-
-.task-info {
-  margin-bottom: 15px;
-}
-
-.task-type {
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 5px;
-}
-
-.task-status-text {
-  font-size: 14px;
-  color: #666;
-}
-
-.progress-section {
-  margin-bottom: 15px;
-}
-
-.progress-bar {
-  height: 8px;
-  background: #e9ecef;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 8px;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #1890ff, #00c6ff);
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-.progress-text {
-  font-size: 14px;
-  color: #1890ff;
-  font-weight: bold;
-  text-align: right;
-}
-
-.complete-info,
-.error-info {
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.complete-time {
-  font-size: 12px;
-  color: #666;
-  margin-bottom: 10px;
-}
-
+.complete-time { display: block; font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--space-3); }
 .btn-download {
-  width: 100%;
-  height: 40px;
-  background: #52c41a;
-  color: #fff;
-  font-size: 14px;
-  border-radius: 20px;
-  border: none;
+  width: 140px; height: var(--btn-height-sm);
+  background: var(--color-success); color: #fff;
+  font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-sm); border: none;
+  display: inline-flex; align-items: center; justify-content: center;
 }
 
-.error-message {
-  font-size: 12px;
-  color: #ff4d4f;
-  margin-bottom: 10px;
-}
-
+.error-message { display: block; font-size: var(--font-size-sm); color: var(--color-error); margin-bottom: var(--space-3); }
 .btn-retry {
-  width: 100%;
-  height: 40px;
-  background: #fff;
-  color: #ff4d4f;
-  font-size: 14px;
-  border-radius: 20px;
-  border: 1px solid #ff4d4f;
+  width: 140px; height: var(--btn-height-sm);
+  background: var(--color-error); color: #fff;
+  font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-sm); border: none;
+  display: inline-flex; align-items: center; justify-content: center;
 }
 
 .task-details {
-  background: #fff;
-  border-radius: 12px;
-  padding: 15px;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
 }
-
 .detail-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #f5f5f5;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 0.5px solid var(--color-separator);
 }
-
-.detail-item:last-child {
-  border-bottom: none;
-}
-
-.detail-label {
-  font-size: 14px;
-  color: #666;
-}
-
-.detail-value {
-  font-size: 14px;
-  color: #333;
-  font-weight: 500;
-}
+.detail-item:last-child { border-bottom: none; }
+.detail-label { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.detail-value { font-size: var(--font-size-sm); color: var(--color-text-primary); font-weight: var(--font-weight-medium); }
 </style>

@@ -11,8 +11,8 @@ interface TaskState {
   id: string;
   status: TaskStatus;
   progress: number;
-  resultUrl?: string;
-  errorMessage?: string;
+  resultUrl: string | null;
+  errorMessage: string | null;
   updatedAt: string;
 }
 

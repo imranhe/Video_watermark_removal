@@ -8,13 +8,9 @@
 /* ===========================================
  * CSS RESET
  * =========================================== */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+
+/* 注意：微信小程序不支持通配符选择器 * */
+/* 使用具体的元素选择器替代 */
 
 /* ===========================================
  * ROOT ELEMENT
@@ -133,11 +129,8 @@ textarea::-webkit-input-placeholder {
 
 /* ===========================================
  * SELECTION
+ * 注意: 微信小程序不支持 ::selection 伪元素
  * =========================================== */
-::selection {
-  background-color: var(--color-primary-light);
-  color: var(--color-primary-dark);
-}
 
 /* ===========================================
  * SCROLLBAR STYLING
@@ -231,27 +224,17 @@ textarea::-webkit-input-placeholder {
 }
 
 /* Focus visible for keyboard navigation */
-:focus-visible {
+/* 注意: 微信小程序不支持 :focus-visible，使用通用 focus 样式 */
+button:focus,
+input:focus,
+textarea:focus {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   border-radius: var(--radius-xs);
 }
 
-/* Remove focus ring for mouse users */
-:focus:not(:focus-visible) {
-  outline: none;
-}
-
 /* ===========================================
  * REDUCED MOTION
+ * 注意: 微信小程序不支持 @media (prefers-reduced-motion)
+ * 以及 * 通配符选择器
  * =========================================== */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}

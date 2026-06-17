@@ -61,25 +61,15 @@
     /* 小程序特有相关 */
     "mp-weixin" : {
         "appid" : "wx9f912775c8453390",
-        "_comment_appid" : "TODO: 替换为真实的微信小程序 AppID",
         "setting" : {
-            "urlCheck" : false,
+            "urlCheck" : true,
             "es6" : true,
             "postcss" : true,
             "minified" : true
         },
-        "usingComponents" : true,
-        "permission" : {
-            "scope.camera" : {
-                "desc" : "需要访问相机以拍摄视频"
-            },
-            "scope.writePhotosAlbum" : {
-                "desc" : "需要保存处理后的视频到相册"
-            }
-        },
+       "usingComponents" : true,
+        "__usePrivacyCheck__" : true,
         "requiredPrivateInfos" : [
-            "chooseVideo",
-            "saveVideoToPhotosAlbum"
         ]
     },
     "mp-alipay" : {

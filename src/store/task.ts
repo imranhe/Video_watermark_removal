@@ -1,8 +1,12 @@
 /**
  * 任务状态管理
+ *
+ * createTask 使用 uni.uploadFile 直接上传视频文件到后端
+ * （后端 POST /v1/tasks 接口期望 multipart file + task_type + region）
  */
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { uploadFile, get } from '@/api/request';
 import { useTaskPoller } from '@/utils/poller';
 import type { Task, TaskStatus, TaskType } from '@/types';
 
@@ -29,27 +33,35 @@ export const useTaskStore = defineStore('task', () => {
   const taskCount = computed(() => tasks.value.length);
 
   // Actions
+  /**
+   * 创建处理任务
+   * 后端 POST /v1/tasks 接口使用 multer upload.single('video')
+   * 前端必须通过 uni.uploadFile 发送 multipart/form-data
+   */
   async function createTask(
-    videoUrl: string,
-    taskType: 'subtitle' | 'icon',
-    params: Record<string, any> = {}
+    videoFilePath: string,
+    taskType: TaskType,
+    region?: Record<string, any>
   ): Promise<Task> {
     isLoading.value = true;
     error.value = null;
 
     try {
-      const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
-      const response = await uni.request({
-        url: `${API_BASE}/v1/tasks/create`,
-        method: 'POST',
-        data: { videoUrl, taskType, params },
-      });
-
-      if (response.statusCode !== 200) {
-        throw new Error('创建任务失败');
+      const formData: Record<string, string> = {
+        task_type: taskType,
+      };
+      if (region) {
+        formData.region = JSON.stringify(region);
       }
 
-      const task = response.data as Task;
+      const result = await uploadFile<Task>(
+        '/v1/tasks',
+        videoFilePath,
+        formData,
+        'video'
+      );
+
+      const task = result.data;
       currentTask.value = task;
       tasks.value.unshift(task);
 
@@ -77,7 +89,7 @@ export const useTaskStore = defineStore('task', () => {
         if (task) {
           task.status = taskState.status;
           task.progress = taskState.progress;
-          task.resultUrl = taskState.resultUrl || null;
+          task.resultUrl = taskState.resultUrl;
           task.errorMessage = taskState.errorMessage;
           if (taskState.status === 'completed') {
             task.completedAt = new Date().toISOString();
@@ -103,17 +115,9 @@ export const useTaskStore = defineStore('task', () => {
    */
   async function fetchTask(taskId: string): Promise<Task | null> {
     try {
-      const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
-      const response = await uni.request({
-        url: `${API_BASE}/v1/tasks/${taskId}`,
-        method: 'GET',
-      });
+      const result = await get<Task>(`/v1/tasks/${taskId}`);
+      const task = result.data;
 
-      if (response.statusCode !== 200) {
-        throw new Error('获取任务失败');
-      }
-
-      const task = response.data as Task;
       const index = tasks.value.findIndex((t) => t.id === taskId);
       if (index !== -1) {
         tasks.value[index] = task;
@@ -132,19 +136,11 @@ export const useTaskStore = defineStore('task', () => {
   /**
    * 获取用户任务列表
    */
-  async function fetchUserTasks(userId: string): Promise<Task[]> {
+  async function fetchUserTasks(): Promise<Task[]> {
     try {
-      const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
-      const response = await uni.request({
-        url: `${API_BASE}/v1/tasks/user/${userId}`,
-        method: 'GET',
-      });
-
-      if (response.statusCode !== 200) {
-        throw new Error('获取任务列表失败');
-      }
-
-      tasks.value = response.data as Task[];
+      const result = await get<any>('/v1/tasks', { page: 1, page_size: 20 });
+      const data = result.data;
+      tasks.value = data.list || data.tasks || data || [];
       return tasks.value;
     } catch (err: any) {
       error.value = err.message || '获取任务列表失败';

@@ -58,66 +58,76 @@ defineExpose({ showPrivacyDialog });
 <style scoped>
 .privacy-dialog {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 999;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: var(--z-modal);
 }
 .dialog-mask {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0, 0, 0, 0.5);
 }
 .dialog-content {
   position: relative;
-  margin: 20% 40px;
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
+  margin: 20% var(--space-8);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-lg);
 }
 .dialog-header {
   text-align: center;
-  margin-bottom: 15px;
+  margin-bottom: var(--space-4);
 }
 .dialog-title {
-  font-size: 18px;
-  font-weight: bold;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
 }
 .dialog-body {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-6);
 }
 .dialog-text {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.6;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
 }
 .dialog-links {
-  margin-top: 10px;
+  margin-top: var(--space-3);
+  display: flex;
+  gap: var(--space-2);
 }
 .link {
-  color: #007AFF;
-  font-size: 14px;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
 }
 .dialog-footer {
   display: flex;
-  gap: 10px;
+  gap: var(--space-3);
 }
 .btn-disagree {
   flex: 1;
-  height: 40px;
-  background: #f5f5f5;
-  color: #666;
-  border-radius: 20px;
+  height: var(--btn-height-md);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .btn-agree {
   flex: 1;
-  height: 40px;
-  background: #007AFF;
+  height: var(--btn-height-md);
+  background: var(--color-primary);
   color: #fff;
-  border-radius: 20px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

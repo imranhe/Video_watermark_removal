@@ -77,7 +77,7 @@ export interface LoginResponse {
 
 export type TaskStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
 
-export type TaskType = 'subtitle' | 'watermark' | 'logo';
+export type TaskType = 'subtitle' | 'watermark' | 'logo' | 'icon';
 
 export interface Task {
   id: string;
@@ -317,7 +317,7 @@ export interface FormField {
 }
 
 export interface FormState {
-  [key: string]: FormField;
+  fields: { [key: string]: FormField };
   isValid: boolean;
   isSubmitting: boolean;
 }

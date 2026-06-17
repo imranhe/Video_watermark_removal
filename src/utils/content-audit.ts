@@ -1,6 +1,6 @@
 /**
  * 内容审核工具
- * 使用微信内容安全接口
+ * 使用微信内容安全接口（msg_sec_check / img_sec_check）
  */
 
 interface AuditResult {
@@ -37,7 +37,8 @@ export async function checkText(text: string): Promise<AuditResult> {
     // #endif
   } catch (error) {
     console.error('内容审核失败:', error);
-    return { pass: true }; // 审核失败时默认通过
+    // 审核接口异常时放行，但记录日志（微信审核接口不可用不应阻塞正常用户）
+    return { pass: true };
   }
 }
 

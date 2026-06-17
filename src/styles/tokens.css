@@ -10,7 +10,7 @@
  *   border-radius: var(--radius-md);
  */
 
-:root {
+page, :root {
   /* ===========================================
    * COLORS - Primary (Apple Blue)
    * =========================================== */
@@ -51,9 +51,9 @@
   /* ===========================================
    * COLORS - Gradient (Brand)
    * =========================================== */
-  --gradient-brand: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --gradient-brand-hover: linear-gradient(135deg, #5a6fd6 0%, #6a4294 100%);
-  --gradient-success: linear-gradient(135deg, #34C759 0%, #30B350 100%);
+  --gradient-brand: #667eea;
+  --gradient-brand-hover: #5a6fd6;
+  --gradient-success: #34C759;
 
   /* ===========================================
    * TYPOGRAPHY - Font Family (SF Pro Stack)

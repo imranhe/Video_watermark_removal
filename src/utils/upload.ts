@@ -57,7 +57,7 @@ interface UploadResult {
  */
 export function useVideoUpload(config: UploadConfig = {}) {
   const {
-    maxFileSize = 100,
+    maxFileSize = 300,
     chunkSize = 2,
     maxRetries = 3,
   } = config;
@@ -102,7 +102,7 @@ export function useVideoUpload(config: UploadConfig = {}) {
             count: 1,
             mediaType: ['video'],
             sourceType: ['album', 'camera'],
-            maxDuration: 60,
+            maxDuration: 180,
             success: resolve,
             fail: reject,
           });
@@ -125,7 +125,7 @@ export function useVideoUpload(config: UploadConfig = {}) {
         const res = await new Promise<any>((resolve, reject) => {
           my.chooseVideo({
             sourceType: ['album', 'camera'],
-            maxDuration: 60,
+            maxDuration: 180,
             success: resolve,
             fail: reject,
           });
