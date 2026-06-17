@@ -10,7 +10,8 @@ onLaunch(() => {
   installGlobalErrorCapture();
   logInfo("应用启动");
 
-  // 检查是否已同意隐私协议
+  // 检查是否已同意隐私协议（作为非微信平台的兜底逻辑）
+  // 微信平台下，PrivacyDialog 通过 uni.onNeedPrivacyAuthorization 自动弹出
   const agreed = uni.getStorageSync('privacy_agreed');
   if (!agreed) {
     setTimeout(() => {

@@ -16,27 +16,55 @@
       </view>
       <view class="dialog-footer">
         <button class="btn-disagree" @tap="handleDisagree">不同意</button>
-        <button class="btn-agree" @tap="handleAgree">同意并继续</button>
+        <!-- 关键：必须使用 open-type="agreePrivacyAuthorization" 并设置 id -->
+        <button
+          class="btn-agree"
+          id="agree-btn"
+          open-type="agreePrivacyAuthorization"
+          @agreeprivacyauthorization="handleAgree"
+        >
+          同意并继续
+        </button>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 
 const show = ref(false);
+let privacyResolve: ((value: { buttonId: string; event: string }) => void) | null = null;
 
-function showPrivacyDialog() {
-  show.value = true;
-}
+onMounted(() => {
+  // 监听隐私授权事件 — 微信官方 API
+  // #ifdef MP-WEIXIN
+  uni.onNeedPrivacyAuthorization((resolve) => {
+    privacyResolve = resolve;
+    show.value = true;
+  });
+  // #endif
+});
+
+defineExpose({
+  showPrivacyDialog() {
+    show.value = true;
+  }
+});
 
 function handleAgree() {
+  if (privacyResolve) {
+    privacyResolve({ buttonId: 'agree-btn', event: 'agree' });
+  }
   uni.setStorageSync('privacy_agreed', true);
   show.value = false;
 }
 
 function handleDisagree() {
+  if (privacyResolve) {
+    privacyResolve({ event: 'disagree' });
+  }
+  show.value = false;
   uni.showModal({
     title: '提示',
     content: '如果您不同意隐私政策，将无法使用本小程序的全部功能。',
@@ -51,8 +79,6 @@ function openPrivacyPolicy() {
 function openTerms() {
   uni.navigateTo({ url: '/pages/terms/terms' });
 }
-
-defineExpose({ showPrivacyDialog });
 </script>
 
 <style scoped>
