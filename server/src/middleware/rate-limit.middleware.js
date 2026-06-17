@@ -1,4 +1,4 @@
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const RedisStore = require('rate-limit-redis');
 const Redis = require('ioredis');
 const logger = require('../utils/logger');
@@ -51,7 +51,11 @@ function createRateLimiter(options = {}) {
     standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
     legacyHeaders: false, // Disable `X-RateLimit-*` headers
     skipSuccessfulRequests,
-    keyGenerator,
+    keyGenerator: (req, res) => {
+      const rawKey = keyGenerator(req, res);
+      // 使用 ipKeyGenerator 处理 IPv6 地址
+      return ipKeyGenerator(req, res, rawKey);
+    },
     handler: (req, res) => {
       logger.warn('Rate limit exceeded', {
         ip: req.ip,
@@ -154,4 +158,19 @@ module.exports = {
   userLimiter,
   createRateLimiter,
   getRedisClient,
+  closeRedisClient,
 };
+
+/**
+ * 关闭 Redis 客户端连接
+ */
+async function closeRedisClient() {
+  if (redisClient) {
+    try {
+      await redisClient.quit();
+    } catch (e) {
+      // ignore
+    }
+    redisClient = null;
+  }
+}

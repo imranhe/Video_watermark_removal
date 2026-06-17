@@ -107,6 +107,26 @@ const taskController = {
     }
   },
 
+  async parseLink(req, res, next) {
+    try {
+      const { url } = req.body;
+      const result = await taskService.parseLink(url);
+      res.json(successResponse(result));
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async createFromLink(req, res, next) {
+    try {
+      const { url, task_type, region } = req.body;
+      const result = await taskService.createFromLink(req.user.id, url, task_type, region);
+      res.status(201).json(successResponse(result));
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async download(req, res, next) {
     try {
       const result = await taskService.getDownloadUrl(req.params.id, req.user.id);

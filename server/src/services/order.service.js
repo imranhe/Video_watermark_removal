@@ -2,6 +2,7 @@ const orderModel = require('../models/order.model');
 const packageModel = require('../models/package.model');
 const pointsLogModel = require('../models/points-log.model');
 const userModel = require('../models/user.model');
+const notificationModel = require('../models/notification.model');
 const wechatPayClient = require('../utils/payment');
 const logger = require('../utils/logger');
 
@@ -150,6 +151,92 @@ const orderService = {
     }
 
     logger.info(`支付成功: 订单=${orderNo}, 用户=${order.user_id}, 金额=${order.amount}`);
+  },
+
+  /**
+   * 用户申请退款
+   */
+  async requestRefund(userId, orderId) {
+    // 验证订单归属
+    const order = await orderModel.findById(orderId);
+    if (!order || order.user_id !== userId) {
+      const error = new Error('订单不存在');
+      error.code = 1005;
+      throw error;
+    }
+
+    if (order.status !== 'paid') {
+      const error = new Error('只能退款已支付的订单');
+      error.code = 1006;
+      throw error;
+    }
+
+    // 生成退款单号
+    const refundNo = `REF${order.order_no}${Date.now()}`;
+
+    try {
+      // 调用微信支付退款接口
+      const refundResult = await wechatPayClient.refund(
+        order.order_no,
+        refundNo,
+        parseFloat(order.amount),
+        parseFloat(order.amount),
+        '用户申请退款'
+      );
+
+      // 更新订单状态为已退款
+      await orderModel.update(orderId, {
+        status: 'refunded',
+        refund_id: refundResult.refund_id,
+        refund_no: refundNo,
+        refunded_at: new Date(),
+      });
+
+      // 退还积分
+      if (order.credits > 0) {
+        await pointsLogModel.addPoints(
+          order.user_id,
+          order.credits,
+          `订单退款 ${order.order_no}`,
+          order.id
+        );
+      }
+
+      // 发送通知
+      await notificationModel.create({
+        user_id: userId,
+        type: 'refund',
+        title: '退款通知',
+        content: `您的订单 ${order.order_no} 已成功退款，退款金额 ¥${parseFloat(order.amount).toFixed(2)}。${order.credits > 0 ? `已退还 ${order.credits} 积分。` : ''}退款将在 1-5 个工作日内到账。`,
+      });
+
+      logger.info('用户退款申请成功', {
+        orderId,
+        orderNo: order.order_no,
+        amount: order.amount,
+        refundId: refundResult.refund_id,
+        userId,
+      });
+
+      return {
+        id: orderId,
+        status: 'refunded',
+        refund_id: refundResult.refund_id,
+        refund_status: refundResult.status,
+      };
+    } catch (error) {
+      logger.error('用户退款申请失败', {
+        orderId,
+        orderNo: order.order_no,
+        amount: order.amount,
+        error: error.message,
+        userId,
+      });
+
+      const err = new Error(`退款失败: ${error.message}`);
+      err.code = 1020;
+      throw err;
+    }
   },
 
   async getAdminTodayStats() {

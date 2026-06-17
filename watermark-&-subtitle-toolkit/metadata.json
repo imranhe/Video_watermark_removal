@@ -1,0 +1,8 @@
+{
+  "name": "Watermark & Subtitle Toolkit",
+  "description": "一个全能的多媒体水印去除与智能字幕工具箱，包含链接解析、图片去水印、视频智能字幕等功能。",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

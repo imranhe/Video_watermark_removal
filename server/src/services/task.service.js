@@ -56,10 +56,10 @@ const taskService = {
           videoFile.originalname
         );
         videoUrl = uploadResult.url;
-        logger.info('Video uploaded to OSS', { taskId: task.id, ossUrl: videoUrl });
+        logger.info('Video uploaded to OSS', { userId, ossUrl: videoUrl });
       } catch (ossError) {
         logger.error('Failed to upload video to OSS, using local path', {
-          taskId: task.id,
+          userId,
           error: ossError.message,
         });
         // Fallback to local path
@@ -230,10 +230,20 @@ const taskService = {
       retry_count: (task.retry_count || 0) + 1,
     });
 
-    // 异步处理
-    this._processTaskAsync(taskId).catch((err) => {
-      logger.error(`任务重试失败: ${taskId}`, err);
-    });
+    // 重新提交到 BullMQ 真实队列处理
+    try {
+      const jobId = await taskQueueManager.addTask(taskId, task.video_url, task.task_type, task.params?.region);
+      logger.info('任务已重新提交到处理队列', { taskId, jobId });
+    } catch (queueError) {
+      logger.error('任务重新入队失败，使用内联回退处理', {
+        taskId,
+        error: queueError.message,
+      });
+      // 回退：内联处理（仅开发/测试用）
+      this._processTaskAsync(taskId).catch((err) => {
+        logger.error(`任务重试失败: ${taskId}`, err);
+      });
+    }
 
     return {
       id: updatedTask.id,
@@ -297,6 +307,116 @@ const taskService = {
 
     await taskModel.softDelete(taskId);
     return { id: taskId, deleted: true };
+  },
+
+  async parseLink(url) {
+    // 从 URL 检测平台
+    const platforms = {
+      'douyin.com': '抖音',
+      'iesdouyin.com': '抖音',
+      'kuaishou.com': '快手',
+      'gifshow.com': '快手',
+      'xiaohongshu.com': '小红书',
+      'bilibili.com': 'B站',
+      'b23.tv': 'B站',
+      'weibo.com': '微博',
+      'weibo.cn': '微博',
+      'ixigua.com': '西瓜视频',
+      'youtube.com': 'YouTube',
+      'youtu.be': 'YouTube',
+      'instagram.com': 'Instagram',
+      'tiktok.com': 'TikTok',
+    };
+
+    const hostname = new URL(url).hostname;
+    const platform = Object.entries(platforms).find(([key]) => hostname.includes(key));
+    if (!platform) {
+      const error = new Error('不支持的视频平台');
+      error.code = 1009;
+      throw error;
+    }
+
+    // 注意：生产环境应调用真实视频解析 API（如第三方服务）
+    // 当前返回桩响应，表示平台已识别
+    return {
+      platform: platform[1],
+      title: '视频解析成功',
+      videoUrl: url,
+      duration: 0,
+      coverUrl: '',
+      supported: true,
+    };
+  },
+
+  async createFromLink(userId, url, taskType = 'subtitle', region = null) {
+    // 先解析链接以验证
+    const linkInfo = await this.parseLink(url);
+
+    // 检查用户
+    const user = await userModel.findById(userId);
+    if (!user) {
+      const error = new Error('用户不存在');
+      error.code = 1002;
+      throw error;
+    }
+
+    // 获取积分消耗
+    const pointsCost = TASK_POINTS_COST[taskType] || 10;
+
+    // VIP 用户不需要扣积分
+    const isVip = user.vip_type && user.vip_type !== 'none'
+      && user.vip_expire_at && new Date(user.vip_expire_at) > new Date();
+
+    if (!isVip) {
+      // 扣减积分（原子操作）
+      try {
+        await pointsLogModel.deductPoints(
+          userId,
+          pointsCost,
+          `链接解析任务（${taskType}）`,
+          null
+        );
+      } catch (err) {
+        if (err.code === 1003) {
+          throw err; // 积分不足
+        }
+        throw err;
+      }
+    }
+
+    // 创建任务，将 URL 作为 video_url
+    const params = region
+      ? { region, sourceUrl: url, platform: linkInfo.platform }
+      : { sourceUrl: url, platform: linkInfo.platform };
+    const task = await taskModel.create({
+      user_id: userId,
+      video_url: url,
+      task_type: taskType,
+      params,
+      points_cost: isVip ? 0 : pointsCost,
+    });
+
+    // 更新用户统计
+    await userModel.update(userId, { total_tasks: (user.total_tasks || 0) + 1 });
+
+    // 添加到处理队列
+    try {
+      const jobId = await taskQueueManager.addTask(task.id, url, taskType, region);
+      logger.info('链接任务已添加到处理队列', { taskId: task.id, jobId });
+    } catch (queueError) {
+      logger.warn('添加到队列失败，使用内联处理', { error: queueError.message });
+      this._processTaskAsync(task.id).catch((err) => {
+        logger.error(`链接任务处理失败: ${task.id}`, err);
+      });
+    }
+
+    return {
+      id: task.id,
+      status: task.status,
+      task_type: task.task_type,
+      points_cost: isVip ? 0 : pointsCost,
+      platform: linkInfo.platform,
+    };
   },
 
   async getDownloadUrl(taskId, userId) {

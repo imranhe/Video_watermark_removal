@@ -13,7 +13,14 @@ const connection = new Redis({
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT, 10) || 6379,
   password: process.env.REDIS_PASSWORD || undefined,
-  maxRetriesPerRequest: 3,
+  maxRetriesPerRequest: null,
+});
+
+/**
+ * QueueScheduler — 确保延迟任务和重试任务正常调度
+ */
+const queueScheduler = new QueueScheduler('task-processing', {
+  connection,
 });
 
 /**
@@ -33,71 +40,9 @@ const taskQueue = new Queue('task-processing', {
 });
 
 /**
- * Task processing worker
+ * Poll MPS job status until completion (独立函数，避免 this 上下文问题）
  */
-const taskWorker = new Worker(
-  'task-processing',
-  async (job) => {
-    const { taskId, videoUrl, taskType, region } = job.data;
-    logger.info(`Processing task ${taskId}`, { taskType, attempt: job.attemptsMade + 1 });
-
-    try {
-      // Update task status to processing
-      await taskModel.update(taskId, {
-        status: 'processing',
-        progress: 10,
-      });
-
-      // Generate output URL
-      const outputKey = ossClient.extractKey(videoUrl).replace(
-        'videos/original',
-        'videos/processed'
-      );
-      const outputUrl = ossClient.getPublicUrl(outputKey);
-
-      // Submit to Aliyun MPS
-      const mpsResult = await mpsClient.submitJob(videoUrl, outputUrl, taskType, {
-        region: region || undefined,
-      });
-
-      if (!mpsResult.success || !mpsResult.jobId) {
-        throw new Error('Failed to submit MPS job');
-      }
-
-      logger.info(`MPS job submitted for task ${taskId}`, { mpsJobId: mpsResult.jobId });
-
-      // Poll for job completion
-      await this._pollJobStatus(taskId, mpsResult.jobId);
-
-      return { taskId, mpsJobId: mpsResult.jobId };
-    } catch (error) {
-      logger.error(`Task ${taskId} processing failed`, {
-        error: error.message,
-        attempt: job.attemptsMade + 1,
-      });
-
-      // Mark task as failed on final attempt
-      if (job.attemptsMade >= 2) {
-        // 0-indexed, so 2 means 3rd attempt
-        await taskModel.update(taskId, {
-          status: 'failed',
-          error_message: error.message || 'Processing failed',
-        });
-      }
-
-      throw error;
-    }
-  },
-  {
-    connection,
-    concurrency: 5, // Process 5 tasks concurrently
-  }
-);
-
-/**
- * Poll MPS job status until completion
- */
-taskWorker._pollJobStatus = async function (taskId, mpsJobId, maxAttempts = 120) {
+async function pollJobStatus(taskId, mpsJobId, maxAttempts = 120) {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const jobStatus = await mpsClient.queryJob(mpsJobId);
 
@@ -106,7 +51,6 @@ taskWorker._pollJobStatus = async function (taskId, mpsJobId, maxAttempts = 120)
     await taskModel.update(taskId, { progress });
 
     if (jobStatus.status === 'completed') {
-      // Download result to local (or get OSS URL)
       const resultUrl = jobStatus.outputUrl;
 
       await taskModel.update(taskId, {
@@ -146,7 +90,68 @@ taskWorker._pollJobStatus = async function (taskId, mpsJobId, maxAttempts = 120)
   }
 
   throw new Error('MPS job polling timeout');
-};
+}
+
+/**
+ * Task processing worker
+ */
+const taskWorker = new Worker(
+  'task-processing',
+  async (job) => {
+    const { taskId, videoUrl, taskType, region } = job.data;
+    logger.info(`Processing task ${taskId}`, { taskType, attempt: job.attemptsMade + 1 });
+
+    try {
+      // Update task status to processing
+      await taskModel.update(taskId, {
+        status: 'processing',
+        progress: 10,
+      });
+
+      // Generate output URL
+      const outputKey = ossClient.extractKey(videoUrl).replace(
+        'videos/original',
+        'videos/processed'
+      );
+      const outputUrl = ossClient.getPublicUrl(outputKey);
+
+      // Submit to Aliyun MPS
+      const mpsResult = await mpsClient.submitJob(videoUrl, outputUrl, taskType, {
+        region: region || undefined,
+      });
+
+      if (!mpsResult.success || !mpsResult.jobId) {
+        throw new Error('Failed to submit MPS job');
+      }
+
+      logger.info(`MPS job submitted for task ${taskId}`, { mpsJobId: mpsResult.jobId });
+
+      // Poll for job completion（使用独立函数，无上下文问题）
+      await pollJobStatus(taskId, mpsResult.jobId);
+
+      return { taskId, mpsJobId: mpsResult.jobId };
+    } catch (error) {
+      logger.error(`Task ${taskId} processing failed`, {
+        error: error.message,
+        attempt: job.attemptsMade + 1,
+      });
+
+      // Mark task as failed on final attempt
+      if (job.attemptsMade >= 2) {
+        await taskModel.update(taskId, {
+          status: 'failed',
+          error_message: error.message || 'Processing failed',
+        });
+      }
+
+      throw error;
+    }
+  },
+  {
+    connection,
+    concurrency: 5, // Process 5 tasks concurrently
+  }
+);
 
 /**
  * Handle worker events
@@ -255,5 +260,6 @@ const taskQueueManager = {
 module.exports = {
   taskQueue,
   taskWorker,
+  queueScheduler,
   taskQueueManager,
 };

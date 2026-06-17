@@ -33,8 +33,16 @@ services:
       - JWT_SECRET=your_jwt_secret
       - ALIYUN_ACCESS_KEY=your_access_key
       - ALIYUN_SECRET_KEY=your_secret_key
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - WECHAT_APP_ID=your_app_id
+      - WECHAT_APP_SECRET=your_app_secret
+      - WECHAT_MCH_ID=your_merchant_id
+      - WECHAT_SERIAL_NO=your_serial_no
+      - WECHAT_API_KEY=your_api_key
     depends_on:
       - mysql
+      - redis
     networks:
       - app-network
     restart: unless-stopped
@@ -57,6 +65,18 @@ services:
       - app-network
     restart: unless-stopped
 
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: video-remover-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+
 # 网络配置
 networks:
   app-network:
@@ -65,4 +85,6 @@ networks:
 # 数据卷
 volumes:
   mysql_data:
+    driver: local
+  redis_data:
     driver: local

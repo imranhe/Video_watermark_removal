@@ -1,4 +1,5 @@
 const orderService = require('../services/order.service');
+const wechatPayClient = require('../utils/payment');
 const { successResponse, paginate } = require('../utils/helpers');
 
 const orderController = {
@@ -50,21 +51,27 @@ const orderController = {
     }
   },
 
+  async refund(req, res, next) {
+    try {
+      const result = await orderService.requestRefund(req.user.id, req.params.id);
+      res.json(successResponse(result));
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async wechatCallback(req, res, next) {
     try {
-      // 解析微信支付回调 XML
-      const xmlData = req.body.toString();
-      const { parsePaymentCallback } = require('../utils/payment');
-      const callbackData = parsePaymentCallback(xmlData);
+      // 微信支付 V3 回调：JSON 格式 + AES-GCM 加密
+      const callbackData = await wechatPayClient.processCallback(
+        req.headers,
+        JSON.stringify(req.body)
+      );
 
       await orderService.handlePaymentCallback(callbackData);
 
-      // 返回成功响应 XML
-      res.set('Content-Type', 'text/xml');
-      res.send(`<xml>
-        <return_code><![CDATA[SUCCESS]]></return_code>
-        <return_msg><![CDATA[OK]]></return_msg>
-      </xml>`);
+      // V3 返回 JSON 响应
+      res.json({ code: 'SUCCESS', message: 'OK' });
     } catch (err) {
       next(err);
     }

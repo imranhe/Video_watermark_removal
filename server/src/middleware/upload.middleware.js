@@ -3,7 +3,7 @@ const path = require('path');
 const { generateUUID } = require('../utils/helpers');
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || 'uploads';
-const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE, 10) || 104857600; // 100MB
+const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE, 10) || 314572800; // 300MB
 
 const allowedMimeTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo'];
 const allowedExtensions = ['.mp4', '.mov', '.avi'];

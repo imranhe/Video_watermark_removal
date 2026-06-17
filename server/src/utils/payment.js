@@ -326,6 +326,71 @@ class WechatPayClient {
     logger.info('Order closed', { orderNo });
     return true;
   }
+
+  /**
+   * 申请退款
+   *
+   * @param {string} orderNo - 商户订单号
+   * @param {string} refundNo - 商户退款单号
+   * @param {number} amount - 退款金额（元）
+   * @param {number} totalAmount - 原订单金额（元）
+   * @param {string} reason - 退款原因
+   * @returns {Promise<object>} - 退款结果
+   */
+  async refund(orderNo, refundNo, amount, totalAmount, reason = '用户退款') {
+    const url = config.refundUrl;
+    const requestData = {
+      out_trade_no: orderNo,
+      out_refund_no: refundNo,
+      reason,
+      amount: {
+        refund: Math.round(amount * 100),
+        total: Math.round(totalAmount * 100),
+        currency: 'CNY',
+      },
+    };
+
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const nonceStr = crypto.randomBytes(16).toString('hex');
+    const body = JSON.stringify(requestData);
+
+    const signData = `POST\n/v3/refund/domestic/refunds\n${timestamp}\n${nonceStr}\n${body}\n`;
+    const signature = this._sign(signData);
+
+    const authorization = `WECHATPAY2-SHA256-RSA2048 mchid="${this.mchId}",nonce_str="${nonceStr}",timestamp="${timestamp}",serial_no="${this.serialNo}",signature="${signature}"`;
+
+    try {
+      const response = await axios.post(url, requestData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': authorization,
+        },
+        timeout: 30000,
+      });
+
+      logger.info('退款申请成功', {
+        orderNo,
+        refundNo,
+        amount,
+        refundId: response.data.refund_id,
+        status: response.data.status,
+      });
+
+      return response.data;
+    } catch (error) {
+      const errData = error.response?.data;
+      logger.error('退款申请失败', {
+        orderNo,
+        refundNo,
+        amount,
+        status: error.response?.status,
+        code: errData?.code,
+        message: errData?.message,
+      });
+      throw new Error(errData?.message || '退款申请失败');
+    }
+  }
 }
 
 // Export singleton instance

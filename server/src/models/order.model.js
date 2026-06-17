@@ -79,6 +79,18 @@ const orderModel = {
       fields.push('paid_at = ?');
       values.push(data.paid_at);
     }
+    if (data.refund_id !== undefined) {
+      fields.push('refund_id = ?');
+      values.push(data.refund_id);
+    }
+    if (data.refund_no !== undefined) {
+      fields.push('refund_no = ?');
+      values.push(data.refund_no);
+    }
+    if (data.refunded_at !== undefined) {
+      fields.push('refunded_at = ?');
+      values.push(data.refunded_at);
+    }
 
     if (fields.length === 0) return this.findById(id);
 

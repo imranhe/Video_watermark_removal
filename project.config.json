@@ -3,6 +3,7 @@
     "es6": true,
     "postcss": true,
     "minified": true,
+    "urlCheck": false,
     "uglifyFileName": false,
     "enhance": true,
     "packNpmRelationList": [],
@@ -12,14 +13,28 @@
       "outputPath": ""
     },
     "useCompilerPlugins": false,
-    "minifyWXML": true
+    "minifyWXML": true,
+    "compileWorklet": false,
+    "uploadWithSourceMap": true,
+    "packNpmManually": false,
+    "minifyWXSS": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true
   },
   "compileType": "miniprogram",
   "simulatorPluginLibVersion": {},
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      { "type": "file", "value": "._*" },
+      { "type": "folder", "value": "._*" }
+    ],
     "include": []
   },
-  "appid": "wx058e7d0fa0490c5a",
-  "editorSetting": {}
+  "appid": "wx9f912775c8453390",
+  "editorSetting": {},
+  "libVersion": "3.16.1",
+  "miniprogramRoot": "dist/build/mp-weixin"
 }
